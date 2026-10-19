@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>위성 녹지 판독 대시보드</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
   --bg:#f3f4f7; --card:#ffffff; --ink:#1b2440; --ink2:#5b6478; --line:#dfe3ea;
@@ -22,12 +24,14 @@
   --navy:#7fa8f0; --navy2:#9dbdf5; --accent:#6aa0f5; --warn:#f08a5d; --ok:#5cc38a; --chip:#1f2940;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5}
-header{background:var(--card);border-bottom:1px solid var(--line);padding:18px 24px}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:18px 24px;position:relative}
 header .sec{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--navy)}
-header .sec::before{content:"";width:5px;height:16px;background:var(--navy)}
+header .sec::before{content:"";width:5px;height:16px;background:var(--navy);flex:0 0 auto}
 header h1{margin:6px 0 2px;font-size:24px;color:var(--navy2)}
-header p{margin:0;color:var(--ink2);font-size:13px}
+header p{margin:0;color:var(--ink2);font-size:13px;max-width:900px}
+.tools{position:absolute;top:18px;right:24px;display:flex;gap:8px}
 .wrap{max-width:1280px;margin:0 auto;padding:20px 24px 48px}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
 .step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;position:relative}
@@ -39,16 +43,19 @@ header p{margin:0;color:var(--ink2);font-size:13px}
 .step .badge.done{background:var(--ok);color:#fff}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
-.card h2{margin:0 0 4px;font-size:16px;color:var(--navy2);display:flex;align-items:center;gap:8px}
+.card h2{margin:0 0 4px;font-size:16px;color:var(--navy2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h2 .tag{font-size:11px;font-weight:500;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--ink2)}
 .card .sub{margin:0 0 12px;color:var(--ink2);font-size:12px}
-.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}
 label{display:block;font-size:12px;color:var(--ink2);margin:8px 0 3px}
 input[type=number],input[type=text],input[type=date],select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
 input[type=range]{width:100%}
 .row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
 button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
 button.ghost{background:transparent;color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--accent);border-radius:6px;overflow:hidden;margin-bottom:8px}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--accent);padding:4px 12px}
+.seg button.on{background:var(--accent);color:#fff}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
 .kpi{background:var(--chip);border-radius:8px;padding:8px 10px}
 .kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -63,211 +70,227 @@ table{width:100%;border-collapse:collapse;font-size:12.5px}
 th{background:var(--navy);color:#fff;font-weight:500;padding:7px 8px;text-align:left}
 :root[data-theme="dark"] th{color:#0f1420}
 td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+.tscroll{overflow-x:auto}
+.tscroll table{min-width:640px}
 tr.off td{color:var(--ink2);opacity:.55}
 .bar{height:8px;background:var(--chip);border-radius:99px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--accent)}
 .bar>i.hot{background:var(--warn)}
 .note{font-size:11px;color:var(--ink2);margin-top:8px}
 .mapwrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.mapcol{width:360px;max-width:100%}
 canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:block}
-.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink2);margin-top:6px}
+#satMap{width:100%;aspect-ratio:1/1;border-radius:8px;border:1px solid var(--line)}
+.leaflet-image-layer{image-rendering:pixelated}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink2);margin-top:6px;flex-wrap:wrap}
 .legend .ramp{width:140px;height:8px;border-radius:4px}
 .ins{border-left:3px solid var(--navy);padding:4px 10px;margin:6px 0;font-size:12.5px;background:var(--chip);border-radius:0 6px 6px 0}
 .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--ink2);margin-right:4px}
 .src{font-size:11px;color:var(--ink2)}
-.toggle{position:absolute;top:18px;right:24px}
-header{position:relative}
 @media (max-width:980px){
   .steps{grid-template-columns:repeat(2,1fr)}
-  .c3,.c4,.c5,.c6,.c7,.c8{grid-column:span 12}
+  .c4,.c5,.c6,.c7,.c8{grid-column:span 12}
 }
 @media (max-width:560px){
   .wrap{padding:16px}
   header{padding:16px}
   .steps{grid-template-columns:1fr}
   .kpis{grid-template-columns:repeat(2,1fr)}
-  .toggle{position:static;margin-top:8px}
+  .tools{position:static;margin-top:8px}
 }
 </style>
 </head>
 <body>
 <header>
-  <div class="sec">SECTION 1. 위성영상 기반 녹지 판독 — NDVI와 지표온도</div>
-  <h1>캠퍼스 녹지 판독 대시보드</h1>
-  <p>Sentinel-2 NDVI 4단계 · i-Tree 경계 · Landsat 9 ST 섭씨 환산 · 네 도구 대조 — 화면의 영상값은 <b>합성 예시 데이터</b>이며 실제 값으로 바꿔 입력할 수 있습니다.</p>
-  <button class="ghost toggle" id="themeBtn">테마 전환</button>
+  <div class="sec" data-i="hdrSec">SECTION 1. 위성영상 기반 녹지 판독 — NDVI와 지표온도</div>
+  <h1 data-i="hdrH1">캠퍼스 녹지 판독 대시보드</h1>
+  <p data-i="hdrP">Sentinel-2 NDVI 4단계 · i-Tree 경계 · Landsat 9 ST 섭씨 환산 · 네 도구 대조 — 화면의 영상값은 <b>합성 예시 데이터</b>이며 실제 값으로 바꿔 입력할 수 있습니다.</p>
+  <div class="tools">
+    <button id="langBtn" title="Italiano / 한국어">🇮🇹 Italiano</button>
+    <button class="ghost" id="themeBtn" data-i="themeBtn">테마 전환</button>
+  </div>
 </header>
 
 <div class="wrap">
   <!-- 4단계 진행 상태 -->
-  <div class="steps" id="steps">
-    <div class="step"><span class="n">1</span><b>계정과 한도</b><span class="badge" id="b1">대기</span><div class="st">CDSE 학생별 계정 · PU/크레딧 기록</div></div>
-    <div class="step"><span class="n">2</span><b>장면 선택</b><span class="badge" id="b2">대기</span><div class="st">대상지·기간·구름량으로 L2A 장면 선택</div></div>
-    <div class="step"><span class="n">3</span><b>밴드 수령</b><span class="badge" id="b3">대기</span><div class="st">10m B4(665nm)·B8(833nm) 수령</div></div>
-    <div class="step"><span class="n">4</span><b>NDVI 계산</b><span class="badge" id="b4">대기</span><div class="st">(B8−B4)/(B8+B4) · 경계 안 평균·분포 → 지표 ⑦</div></div>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><b data-i="s1b">계정과 한도</b><span class="badge" id="b1"></span><div class="st" data-i="s1d">CDSE 학생별 계정 · PU/크레딧 기록</div></div>
+    <div class="step"><span class="n">2</span><b data-i="s2b">장면 선택</b><span class="badge" id="b2"></span><div class="st" data-i="s2d">대상지·기간·구름량으로 L2A 장면 선택</div></div>
+    <div class="step"><span class="n">3</span><b data-i="s3b">밴드 수령</b><span class="badge" id="b3"></span><div class="st" data-i="s3d">10m B4(665nm)·B8(833nm) 수령</div></div>
+    <div class="step"><span class="n">4</span><b data-i="s4b">NDVI 계산</b><span class="badge" id="b4"></span><div class="st" data-i="s4d">(B8−B4)/(B8+B4) · 경계 안 평균·분포 → 지표 ⑦</div></div>
   </div>
 
   <div class="grid">
     <!-- ① 계정과 한도 -->
     <section class="card c5">
-      <h2>① 계정과 한도 <span class="tag">CDSE 무료 계정</span></h2>
-      <p class="sub">기준: Sentinel Hub 월 10,000 PU · 분당 300 PU, openEO 월 10,000 크레딧 (Quotas 조회 2026-09-09)</p>
+      <h2><span data-i="c1h">① 계정과 한도</span> <span class="tag" data-i="c1t">CDSE 무료 계정</span></h2>
+      <p class="sub" data-i="c1s">기준: Sentinel Hub 월 10,000 PU · 분당 300 PU, openEO 월 10,000 크레딧 (Quotas 조회 2026-09-09)</p>
       <table id="quotaTbl">
-        <thead><tr><th>학생</th><th>PU 사용</th><th>openEO 크레딧</th><th></th></tr></thead>
+        <thead><tr><th data-i="thStu">학생</th><th data-i="thPU">PU 사용</th><th data-i="thCR">openEO 크레딧</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
       <div class="row" style="margin-top:8px">
-        <input type="text" id="qName" placeholder="학생 이름/학번">
+        <input type="text" id="qName" data-ip="phName" placeholder="학생 이름/학번">
         <input type="number" id="qPU" placeholder="PU" min="0">
-        <input type="number" id="qCR" placeholder="크레딧" min="0">
-        <button id="qAdd" style="flex:0 0 auto">추가</button>
+        <input type="number" id="qCR" data-ip="phCR" placeholder="크레딧" min="0">
+        <button id="qAdd" style="flex:0 0 auto" data-i="btnAdd">추가</button>
       </div>
-      <label>요청 1회당 예상 PU (분당 300 PU 한도 확인)</label>
+      <label data-i="lblRate">요청 1회당 예상 PU · 분당 요청 수 (분당 300 PU 한도 확인)</label>
       <div class="row">
         <input type="number" id="reqPU" value="12" min="0">
-        <input type="number" id="reqPerMin" value="20" min="0" title="분당 요청 수">
+        <input type="number" id="reqPerMin" value="20" min="0">
       </div>
       <div class="note" id="rateMsg"></div>
     </section>
 
     <!-- ② 장면 선택 -->
     <section class="card c7">
-      <h2>② 장면 선택 <span class="tag">Sentinel-2 L2A (대기보정)</span></h2>
-      <p class="sub">기준: 2A·2B·2C 3개 위성, 적도 5일 재방문, 폭 290km — 구름량·기간 조건을 통과한 장면만 남깁니다 (근거 SentiWiki)</p>
+      <h2><span data-i="c2h">② 장면 선택</span> <span class="tag" data-i="c2t">Sentinel-2 L2A (대기보정)</span></h2>
+      <p class="sub" data-i="c2s">기준: 2A·2B·2C 3개 위성, 적도 5일 재방문, 폭 290km — 구름량·기간 조건을 통과한 장면만 남깁니다 (근거 SentiWiki)</p>
       <div class="row">
-        <div><label>시작일</label><input type="date" id="dFrom" value="2026-05-01"></div>
-        <div><label>종료일</label><input type="date" id="dTo" value="2026-09-30"></div>
-        <div><label>최대 구름량 <b id="ccV">20</b>%</label><input type="range" id="cc" min="0" max="100" value="20"></div>
+        <div><label data-i="lblFrom">시작일</label><input type="date" id="dFrom" value="2026-05-01"></div>
+        <div><label data-i="lblTo">종료일</label><input type="date" id="dTo" value="2026-09-30"></div>
+        <div><label><span data-i="lblCC">최대 구름량</span> <b id="ccV">20</b>%</label><input type="range" id="cc" min="0" max="100" value="20"></div>
       </div>
       <table id="sceneTbl" style="margin-top:10px">
-        <thead><tr><th>선택</th><th>장면 ID</th><th>위성</th><th>취득일</th><th>구름량</th></tr></thead>
+        <thead><tr><th data-i="thPick">선택</th><th data-i="thId">장면 ID</th><th data-i="thSat">위성</th><th data-i="thDate">취득일</th><th data-i="thCloud">구름량</th></tr></thead>
         <tbody></tbody>
       </table>
-      <div class="note">산출: 장면 ID·취득일·구름량 카탈로그 기록 — 선택한 장면이 아래 계산과 내보내기에 기록됩니다.</div>
+      <div class="note" data-i="c2n">산출: 장면 ID·취득일·구름량 카탈로그 기록 — 선택한 장면이 아래 계산과 내보내기에 기록됩니다.</div>
     </section>
 
     <!-- ③④ NDVI 지도 -->
     <section class="card c8">
-      <h2>③ 밴드 수령 · ④ NDVI 계산 <span class="tag">출처: CDSE</span></h2>
-      <p class="sub">13밴드 중 10m 4·20m 6·60m 3 → 식생 판독은 10m 2개 밴드(B4 적색, B8 근적외)만 사용. 붉은 선 = 대상지 경계(통계 모집단).</p>
+      <h2><span data-i="c3h">③ 밴드 수령 · ④ NDVI 계산</span> <span class="tag" data-i="c3t">출처: CDSE</span></h2>
+      <p class="sub" data-i="c3s">13밴드 중 10m 4·20m 6·60m 3 → 식생 판독은 10m 2개 밴드(B4 적색, B8 근적외)만 사용. 붉은 선 = 대상지 경계(통계 모집단).</p>
       <div class="mapwrap">
-        <div>
+        <div class="mapcol">
+          <div class="seg">
+            <button id="vGrid" class="on" data-i="vGrid">NDVI 격자</button>
+            <button id="vSat" data-i="vSat">위성 사진</button>
+          </div>
           <canvas id="ndviMap" width="360" height="360"></canvas>
-          <div class="legend">−1<span class="ramp" id="ramp"></span>+1 <span style="margin-left:8px">격자 10m · 60×60 화소</span></div>
+          <div id="satBox" hidden>
+            <div id="satMap"></div>
+            <label><span data-i="lblOp">NDVI 투명도</span> <b id="opV">55</b>%</label>
+            <input type="range" id="op" min="0" max="100" value="55">
+            <div class="note" data-i="satNote">위성 사진: Esri World Imagery. NDVI 격자와 경계는 상명대 서울캠퍼스 부근 600m 범위에 맞춘 예시입니다.</div>
+          </div>
+          <div class="legend">−1<span class="ramp" id="ramp"></span>+1 <span style="margin-left:8px" data-i="legGrid">격자 10m · 60×60 화소</span></div>
         </div>
         <div style="flex:1;min-width:240px">
-          <label>녹지 임계값 (예: 0.3 이상 가정) — <b id="thV">0.30</b></label>
+          <label><span data-i="lblTh">녹지 임계값 (예: 0.3 이상 가정)</span> — <b id="thV">0.30</b></label>
           <input type="range" id="th" min="0" max="0.8" step="0.01" value="0.3">
           <div class="kpis" style="grid-template-columns:repeat(2,1fr)">
-            <div class="kpi"><div class="v" id="kMean">–</div><div class="l">경계 안 NDVI 평균</div></div>
-            <div class="kpi"><div class="v" id="kSd">–</div><div class="l">표준편차</div></div>
-            <div class="kpi"><div class="v" id="kGreen">–</div><div class="l">녹지 화소 비율</div></div>
-            <div class="kpi"><div class="v" id="kArea">–</div><div class="l">경계 면적 (ha)</div></div>
+            <div class="kpi"><div class="v" id="kMean">–</div><div class="l" data-i="kMeanL">경계 안 NDVI 평균</div></div>
+            <div class="kpi"><div class="v" id="kSd">–</div><div class="l" data-i="kSdL">표준편차</div></div>
+            <div class="kpi"><div class="v" id="kGreen">–</div><div class="l" data-i="kGreenL">녹지 화소 비율</div></div>
+            <div class="kpi"><div class="v" id="kArea">–</div><div class="l" data-i="kAreaL">경계 면적 (ha)</div></div>
           </div>
           <canvas id="hist" width="360" height="150"></canvas>
-          <div class="note">경계 안 NDVI 분포 (막대: 0.05 구간, 주황 선: 임계값)</div>
-          <label style="margin-top:10px">화소 검산 — B4·B8 반사도 입력</label>
+          <div class="note" data-i="histN">경계 안 NDVI 분포 (막대: 0.05 구간, 주황 선: 임계값)</div>
+          <label style="margin-top:10px" data-i="lblPix">화소 검산 — B4·B8 반사도 입력</label>
           <div class="row">
             <input type="number" id="pB4" value="0.05" step="0.01">
             <input type="number" id="pB8" value="0.40" step="0.01">
           </div>
           <div class="ins" id="pOut"></div>
-          <button class="ghost" id="regen" style="margin-top:6px">예시 영상 다시 생성</button>
+          <button class="ghost" id="regen" style="margin-top:6px" data-i="btnRegen">예시 영상 다시 생성</button>
         </div>
       </div>
     </section>
 
     <!-- 지표온도 -->
     <section class="card c4">
-      <h2>지표온도 환산 <span class="tag">출처: USGS</span></h2>
-      <p class="sub">Landsat 9 Collection 2 Level-2 ST_B10 화소값(DN) → 켈빈 → 섭씨</p>
-      <label>ST_B10 화소값 (DN)</label>
+      <h2><span data-i="c4h">지표온도 환산</span> <span class="tag" data-i="c4t">출처: USGS</span></h2>
+      <p class="sub" data-i="c4s">Landsat 9 Collection 2 Level-2 ST_B10 화소값(DN) → 켈빈 → 섭씨</p>
+      <label data-i="lblDN">ST_B10 화소값 (DN)</label>
       <input type="number" id="dn" value="44000">
       <div class="pipe">
         <div class="box"><div class="v" id="pDN">–</div><div class="l">DN</div></div><span class="ar">×0.00341802</span>
-        <div class="box"><div class="v" id="pSc">–</div><div class="l">배율 적용</div></div><span class="ar">+149.0</span>
-        <div class="box"><div class="v" id="pK">–</div><div class="l">켈빈(K)</div></div><span class="ar">−273.15</span>
-        <div class="box hl"><div class="v" id="pC">–</div><div class="l">섭씨(°C)</div></div>
+        <div class="box"><div class="v" id="pSc">–</div><div class="l" data-i="pScL">배율 적용</div></div><span class="ar">+149.0</span>
+        <div class="box"><div class="v" id="pK">–</div><div class="l" data-i="pKL">켈빈(K)</div></div><span class="ar">−273.15</span>
+        <div class="box hl"><div class="v" id="pC">–</div><div class="l" data-i="pCL">섭씨(°C)</div></div>
       </div>
       <div class="kpis" style="grid-template-columns:1fr 1fr">
-        <div class="kpi"><div class="v" id="kLst">–</div><div class="l">경계 안 LST 평균 (30m)</div></div>
-        <div class="kpi"><div class="v" id="kR">–</div><div class="l">NDVI–LST 상관계수 r</div></div>
+        <div class="kpi"><div class="v" id="kLst">–</div><div class="l" data-i="kLstL">경계 안 LST 평균 (30m)</div></div>
+        <div class="kpi"><div class="v" id="kR">–</div><div class="l" data-i="kRL">NDVI–LST 상관계수 r</div></div>
       </div>
       <canvas id="scatter" width="320" height="180"></canvas>
-      <div class="note">30m 셀 단위로 NDVI를 평균해 LST와 비교. CDSE는 Landsat 8·9 Level-1만 제공(2026-01-16)이므로 LST는 USGS EarthExplorer C2 L2에서 수령.</div>
-      <div class="ins"><b>LST ≠ 기온</b> — 취득 시각의 지표면 온도. 동일 날짜대 장면끼리 비교하고 취득일을 병기(3차시 규약). 알고리즘: USGS·RIT·NASA JPL 1.3.0, 열적외 원 해상도와 30m 재배열은 추가 검토 필요.</div>
+      <div class="note" data-i="c4n">30m 셀 단위로 NDVI를 평균해 LST와 비교. CDSE는 Landsat 8·9 Level-1만 제공(2026-01-16)이므로 LST는 USGS EarthExplorer C2 L2에서 수령.</div>
+      <div class="ins" data-i="c4i"><b>LST ≠ 기온</b> — 취득 시각의 지표면 온도. 동일 날짜대 장면끼리 비교하고 취득일을 병기(3차시 규약). 알고리즘: USGS·RIT·NASA JPL 1.3.0, 열적외 원 해상도와 30m 재배열은 추가 검토 필요.</div>
     </section>
 
     <!-- i-Tree -->
     <section class="card c6">
-      <h2>i-Tree Canopy 무작위 점 판독 <span class="tag">경계 = 통계 모집단</span></h2>
-      <p class="sub">경계 안 무작위 점(예제 500점)을 수목/비수목으로 판독 → 피복 % ± 표준오차(SE). NDVI 화소 결과와 <b>분리 기록</b>합니다.</p>
+      <h2><span data-i="c5h">i-Tree Canopy 무작위 점 판독</span> <span class="tag" data-i="c5t">경계 = 통계 모집단</span></h2>
+      <p class="sub" data-i="c5s">경계 안 무작위 점(예제 500점)을 수목/비수목으로 판독 → 피복 % ± 표준오차(SE). NDVI 화소 결과와 <b>분리 기록</b>합니다.</p>
       <div class="row">
-        <div><label>표본점 수 N</label><input type="number" id="nPts" value="500" min="10" max="5000"></div>
-        <div><label>수목 판독 점 수</label><input type="number" id="nTree" value="0" min="0"></div>
-        <div style="display:flex;align-items:flex-end"><button id="simPts">NDVI 지도에서 무작위 판독</button></div>
+        <div><label data-i="lblN">표본점 수 N</label><input type="number" id="nPts" value="500" min="10" max="5000"></div>
+        <div><label data-i="lblTree">수목 판독 점 수</label><input type="number" id="nTree" value="0" min="0"></div>
+        <div style="display:flex;align-items:flex-end"><button id="simPts" data-i="btnSim">NDVI 지도에서 무작위 판독</button></div>
       </div>
       <div class="kpis">
-        <div class="kpi"><div class="v" id="kCan">–</div><div class="l">캐노피 피복 %</div></div>
-        <div class="kpi"><div class="v" id="kSE">–</div><div class="l">± SE (%p)</div></div>
-        <div class="kpi"><div class="v" id="kCanA">–</div><div class="l">캐노피 면적 (ha)</div></div>
-        <div class="kpi"><div class="v" id="kDiff">–</div><div class="l">NDVI 녹지 비율과 차이</div></div>
+        <div class="kpi"><div class="v" id="kCan">–</div><div class="l" data-i="kCanL">캐노피 피복 %</div></div>
+        <div class="kpi"><div class="v" id="kSE">–</div><div class="l" data-i="kSEL">± SE (%p)</div></div>
+        <div class="kpi"><div class="v" id="kCanA">–</div><div class="l" data-i="kCanAL">캐노피 면적 (ha)</div></div>
+        <div class="kpi"><div class="v" id="kDiff">–</div><div class="l" data-i="kDiffL">NDVI 녹지 비율과 차이</div></div>
       </div>
-      <div class="note">SE = √(p(1−p)/N). 경계 면적은 NDVI 지도 경계 화소 수 × 100㎡. 10m 화소와 표본점은 해상도가 다르므로 두 값을 한 칸에 합치지 않습니다. 좌표계 일치 필수 — 불일치 시 경계 미중첩(4·5차시).</div>
-      <div class="note">운영: 2025-12-05 USFS 재원 중단 후 CAL FIRE 등 임회성 지원으로 운영(2026-05-15).</div>
+      <div class="note" data-i="c5n1">SE = √(p(1−p)/N). 경계 면적은 NDVI 지도 경계 화소 수 × 100㎡. 10m 화소와 표본점은 해상도가 다르므로 두 값을 한 칸에 합치지 않습니다. 좌표계 일치 필수 — 불일치 시 경계 미중첩(4·5차시).</div>
+      <div class="note" data-i="c5n2">운영: 2025-12-05 USFS 재원 중단 후 CAL FIRE 등 일회성 지원으로 운영(2026-05-15).</div>
     </section>
 
     <!-- InVEST -->
     <section class="card c6">
-      <h2>InVEST Urban Cooling (3.20.2) <span class="tag">토지피복·증발산 입력</span></h2>
-      <p class="sub">CC = 0.6·그늘 + 0.2·알베도 + 0.2·ETI, T_air = T_ref + (1 − HM)·UHI_max. 오차 원천은 가중치·거리 상수 가정(d_cool 450m).</p>
+      <h2><span>InVEST Urban Cooling (3.20.2)</span> <span class="tag" data-i="c6t">토지피복·증발산 입력</span></h2>
+      <p class="sub" data-i="c6s">CC = 0.6·그늘 + 0.2·알베도 + 0.2·ETI, T_air = T_ref + (1 − HM)·UHI_max. 오차 원천은 가중치·거리 상수 가정(d_cool 450m).</p>
       <div class="row">
-        <div><label>그늘 비율 <b id="shV">0.40</b></label><input type="range" id="sh" min="0" max="1" step="0.01" value="0.4"></div>
-        <div><label>알베도 <b id="alV">0.20</b></label><input type="range" id="al" min="0" max="1" step="0.01" value="0.2"></div>
+        <div><label><span data-i="lblSh">그늘 비율</span> <b id="shV">0.40</b></label><input type="range" id="sh" min="0" max="1" step="0.01" value="0.4"></div>
+        <div><label><span data-i="lblAl">알베도</span> <b id="alV">0.20</b></label><input type="range" id="al" min="0" max="1" step="0.01" value="0.2"></div>
         <div><label>ETI <b id="etV">0.50</b></label><input type="range" id="et" min="0" max="1" step="0.01" value="0.5"></div>
       </div>
       <div class="row">
         <div><label>T_ref (°C)</label><input type="number" id="tref" value="27"></div>
         <div><label>UHI_max (°C)</label><input type="number" id="uhi" value="3"></div>
-        <div><label>2ha 이상 녹지까지 거리(m)</label><input type="number" id="dist" value="300"></div>
+        <div><label data-i="lblDist">2ha 이상 녹지까지 거리(m)</label><input type="number" id="dist" value="300"></div>
       </div>
       <div class="kpis">
         <div class="kpi"><div class="v" id="kCC">–</div><div class="l">CC (0~1)</div></div>
         <div class="kpi"><div class="v" id="kHM">–</div><div class="l">HM (0~1)</div></div>
         <div class="kpi"><div class="v" id="kTair">–</div><div class="l">T_air (°C)</div></div>
-        <div class="kpi"><div class="v" id="kCool">–</div><div class="l">냉각 효과 (°C)</div></div>
+        <div class="kpi"><div class="v" id="kCool">–</div><div class="l" data-i="kCoolL">냉각 효과 (°C)</div></div>
       </div>
-      <div class="note">HM: 거리 ≤ d_cool이면 녹지 냉각(CC_park·거리감쇠)과 화소 CC 중 큰 값, 아니면 화소 CC. 여기서는 CC_park = 0.8, 지수 감쇠 exp(−d/d_cool)로 단순화.</div>
+      <div class="note" data-i="c6n">HM: 거리 ≤ d_cool이면 녹지 냉각(CC_park·거리감쇠)과 화소 CC 중 큰 값, 아니면 화소 CC. 여기서는 CC_park = 0.8, 지수 감쇠 exp(−d/d_cool)로 단순화.</div>
     </section>
 
     <!-- 네 도구 대조표 -->
     <section class="card c8">
-      <h2>네 도구 대조표 <span class="tag">단일 표 병기 시에만 값 비교 가능</span></h2>
-      <table>
-        <thead><tr><th>도구</th><th>산출물</th><th>해상도·주기</th><th>취득 경로·한도</th><th>오차의 원천·상태</th><th>이 대시보드 값</th></tr></thead>
+      <h2><span data-i="c7h">네 도구 대조표</span> <span class="tag" data-i="c7t">단일 표 병기 시에만 값 비교 가능</span></h2>
+      <div class="tscroll"><table>
+        <thead><tr><th data-i="thTool">도구</th><th data-i="thOut">산출물</th><th data-i="thRes">해상도·주기</th><th data-i="thAcc">취득 경로·한도</th><th data-i="thErr">오차의 원천·상태</th><th data-i="thVal">이 대시보드 값</th></tr></thead>
         <tbody>
-          <tr><td><b>Sentinel-2 MSI</b></td><td>NDVI · 13밴드 반사도</td><td>10m · 5일 · 폭 290km</td><td>CDSE 무료 계정(월 10,000 PU)</td><td>취득일 · 구름 · 화소 크기</td><td id="tS2">–</td></tr>
-          <tr><td><b>Landsat 9 OLI-2/TIRS-2</b></td><td>지표온도 ST(K→°C) · 반사도</td><td>30m · 16일 · 2021년 발사</td><td>USGS EarthExplorer C2 L2</td><td>취득 시각 · 계절 · 구름</td><td id="tL9">–</td></tr>
-          <tr><td><b>i-Tree Canopy</b></td><td>피복 % ± SE · 면적 · 편익</td><td>무작위 점(예제 500점)</td><td>웹 도구 · .itrcnpy · PDF · CSV</td><td>표본 수 · 판독자 · 재원</td><td id="tIT">–</td></tr>
-          <tr><td><b>InVEST Urban Cooling</b></td><td>CC · HM(0~1) · T_air(°C)</td><td>입력 래스터 해상도 · 3.20.2</td><td>LULC · ET0 · 생물물리 표 · AOI</td><td>가중치 · d_cool 450m 가정</td><td id="tIV">–</td></tr>
+          <tr><td><b>Sentinel-2 MSI</b></td><td data-i="r1a">NDVI · 13밴드 반사도</td><td data-i="r1b">10m · 5일 · 폭 290km</td><td data-i="r1c">CDSE 무료 계정(월 10,000 PU)</td><td data-i="r1d">취득일 · 구름 · 화소 크기</td><td id="tS2">–</td></tr>
+          <tr><td><b>Landsat 9 OLI-2/TIRS-2</b></td><td data-i="r2a">지표온도 ST(K→°C) · 반사도</td><td data-i="r2b">30m · 16일 · 2021년 발사</td><td>USGS EarthExplorer C2 L2</td><td data-i="r2d">취득 시각 · 계절 · 구름</td><td id="tL9">–</td></tr>
+          <tr><td><b>i-Tree Canopy</b></td><td data-i="r3a">피복 % ± SE · 면적 · 편익</td><td data-i="r3b">무작위 점(예제 500점)</td><td data-i="r3c">웹 도구 · .itrcnpy · PDF · CSV</td><td data-i="r3d">표본 수 · 판독자 · 재원</td><td id="tIT">–</td></tr>
+          <tr><td><b>InVEST Urban Cooling</b></td><td>CC · HM(0~1) · T_air(°C)</td><td data-i="r4b">입력 래스터 해상도 · 3.20.2</td><td data-i="r4c">LULC · ET0 · 생물물리 표 · AOI</td><td data-i="r4d">가중치 · d_cool 450m 가정</td><td id="tIV">–</td></tr>
         </tbody>
-      </table>
-      <div class="src" style="margin-top:6px">SentiWiki · CDSE Quotas FAQ · USGS Landsat C2 L2 · i-Tree Funding Status · InVEST User Guide · GitHub releases — 모두 2026-09-09 조회 · 계정·키는 학생 각자</div>
+      </table></div>
+      <div class="src" style="margin-top:6px" data-i="c7src">SentiWiki · CDSE Quotas FAQ · USGS Landsat C2 L2 · i-Tree Funding Status · InVEST User Guide · GitHub releases — 모두 2026-09-09 조회 · 계정·키는 학생 각자</div>
     </section>
 
     <!-- 인사이트 + 내보내기 -->
     <section class="card c4">
-      <h2>Insight · 지표 ⑦ 기록</h2>
-      <div class="ins"><b>1. 위성 2종</b> — Sentinel-2 10m·5일, Landsat 9 30m·16일(USGS). 화소 단위 값 산출, 오차 원천은 취득일과 구름.</div>
-      <div class="ins"><b>2. i-Tree Canopy</b> — 무작위 점 판독 비율에 표준오차 병기.</div>
-      <div class="ins"><b>3. InVEST</b> — 토지피복·증발산 입력의 냉각 지수 모델, 오차 원천은 가중치·거리 상수 가정.</div>
-      <label>대상지 이름</label>
+      <h2 data-i="c8h">Insight · 지표 ⑦ 기록</h2>
+      <div class="ins" data-i="i1"><b>1. 위성 2종</b> — Sentinel-2 10m·5일, Landsat 9 30m·16일(USGS). 화소 단위 값 산출, 오차 원천은 취득일과 구름.</div>
+      <div class="ins" data-i="i2"><b>2. i-Tree Canopy</b> — 무작위 점 판독 비율에 표준오차 병기.</div>
+      <div class="ins" data-i="i3"><b>3. InVEST</b> — 토지피복·증발산 입력의 냉각 지수 모델, 오차 원천은 가중치·거리 상수 가정.</div>
+      <label data-i="lblSite">대상지 이름</label>
       <input type="text" id="siteName" value="상명대학교 캠퍼스">
       <div class="row" style="margin-top:10px">
-        <button id="exportCsv">지표 ⑦ CSV 내보내기</button>
-        <button class="ghost" id="resetAll" style="flex:0 0 auto">초기화</button>
+        <button id="exportCsv" data-i="btnCsv">지표 ⑦ CSV 내보내기</button>
+        <button class="ghost" id="resetAll" style="flex:0 0 auto" data-i="btnReset">초기화</button>
       </div>
-      <div class="note">NDVI(CDSE)와 LST(USGS), 캐노피(i-Tree)는 출처 칸을 구분해 한 행씩 저장됩니다.</div>
+      <div class="note" data-i="c8n">NDVI(CDSE)와 LST(USGS), 캐노피(i-Tree)는 출처 칸을 구분해 한 행씩 저장됩니다.</div>
     </section>
   </div>
 </div>
@@ -282,6 +305,81 @@ const store = {
 };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt = (v, d=2) => Number.isFinite(v) ? v.toFixed(d) : '–';
+
+/* ---------- 언어 (한국어 / Italiano) ---------- */
+const IT = {
+  hdrSec:'SEZIONE 1. Rilevamento del verde da immagini satellitari — NDVI e temperatura superficiale',
+  hdrH1:'Cruscotto del verde del campus',
+  hdrP:'4 fasi NDVI Sentinel-2 · confine i-Tree · conversione in °C della banda ST di Landsat 9 · confronto tra quattro strumenti — i valori delle immagini sono <b>dati di esempio sintetici</b> e possono essere sostituiti con valori reali.',
+  themeBtn:'Cambia tema',
+  s1b:'Account e quote', s1d:'Account CDSE per studente · registro PU/crediti',
+  s2b:'Selezione della scena', s2d:'Scene L2A per area, periodo e copertura nuvolosa',
+  s3b:'Ricezione delle bande', s3d:'Ricezione di B4 (665nm) e B8 (833nm) a 10m',
+  s4b:'Calcolo NDVI', s4d:'(B8−B4)/(B8+B4) · media e distribuzione nel confine → indicatore ⑦',
+  c1h:'① Account e quote', c1t:'Account CDSE gratuito',
+  c1s:'Criteri: Sentinel Hub 10.000 PU/mese · 300 PU/min, openEO 10.000 crediti/mese (Quotas consultato il 2026-09-09)',
+  thStu:'Studente', thPU:'PU usate', thCR:'Crediti openEO', btnAdd:'Aggiungi',
+  phName:'Nome / matricola', phCR:'Crediti',
+  lblRate:'PU stimate per richiesta · richieste al minuto (limite 300 PU/min)',
+  c2h:'② Selezione della scena', c2t:'Sentinel-2 L2A (correzione atmosferica)',
+  c2s:'Criteri: 3 satelliti 2A·2B·2C, rivisitazione di 5 giorni all’equatore, larghezza 290km — restano solo le scene che rispettano periodo e copertura nuvolosa (fonte SentiWiki)',
+  lblFrom:'Data inizio', lblTo:'Data fine', lblCC:'Copertura nuvolosa max',
+  thPick:'Scelta', thId:'ID scena', thSat:'Satellite', thDate:'Acquisizione', thCloud:'Nuvole',
+  c2n:'Risultato: catalogo con ID scena, data di acquisizione e copertura nuvolosa — la scena scelta viene registrata nei calcoli e nell’esportazione.',
+  c3h:'③ Ricezione bande · ④ Calcolo NDVI', c3t:'Fonte: CDSE',
+  c3s:'Delle 13 bande (4 a 10m · 6 a 20m · 3 a 60m) si usano solo le 2 bande a 10m: B4 (rosso) e B8 (vicino infrarosso). Linea rossa = confine dell’area (popolazione statistica).',
+  vGrid:'Griglia NDVI', vSat:'Foto satellitare', lblOp:'Opacità NDVI',
+  satNote:'Foto satellitare: Esri World Imagery. La griglia NDVI e il confine sono un esempio posizionato su 600m vicino al campus di Seoul della Sangmyung University.',
+  legGrid:'griglia 10m · 60×60 pixel',
+  lblTh:'Soglia del verde (ipotesi: ≥ 0,3)',
+  kMeanL:'NDVI medio nel confine', kSdL:'Deviazione standard', kGreenL:'Quota di pixel verdi', kAreaL:'Superficie del confine (ha)',
+  histN:'Distribuzione NDVI nel confine (barre: classi di 0,05, linea arancione: soglia)',
+  lblPix:'Verifica di un pixel — riflettanza di B4 · B8', btnRegen:'Rigenera l’immagine di esempio',
+  c4h:'Conversione della temperatura superficiale', c4t:'Fonte: USGS',
+  c4s:'Valore pixel ST_B10 (DN) di Landsat 9 Collection 2 Level-2 → kelvin → gradi Celsius',
+  lblDN:'Valore pixel ST_B10 (DN)', pScL:'Scala applicata', pKL:'Kelvin (K)', pCL:'Celsius (°C)',
+  kLstL:'LST media nel confine (30m)', kRL:'Correlazione NDVI–LST r',
+  c4n:'NDVI mediato su celle di 30m e confrontato con la LST. CDSE fornisce Landsat 8·9 solo a Level-1 (2026-01-16), quindi la LST si scarica da USGS EarthExplorer C2 L2.',
+  c4i:'<b>LST ≠ temperatura dell’aria</b> — è la temperatura della superficie all’ora di acquisizione. Confrontare scene di date simili e indicare la data (regola della 3ª lezione). Algoritmo: USGS·RIT·NASA JPL 1.3.0; risoluzione originale dell’infrarosso termico e ricampionamento a 30m da verificare.',
+  c5h:'Lettura a punti casuali i-Tree Canopy', c5t:'Confine = popolazione statistica',
+  c5s:'Punti casuali nel confine (esempio: 500) classificati come albero / non albero → copertura % ± errore standard (SE). Registrata <b>separatamente</b> dal risultato NDVI per pixel.',
+  lblN:'Numero di punti N', lblTree:'Punti classificati come albero', btnSim:'Lettura casuale sulla mappa NDVI',
+  kCanL:'Copertura arborea %', kSEL:'± SE (punti %)', kCanAL:'Superficie arborea (ha)', kDiffL:'Differenza dalla quota verde NDVI',
+  c5n1:'SE = √(p(1−p)/N). Superficie del confine = pixel nel confine × 100㎡. Pixel da 10m e punti campione hanno risoluzioni diverse, quindi i due valori non si uniscono. Il sistema di coordinate deve coincidere — altrimenti i confini non si sovrappongono (lezioni 4·5).',
+  c5n2:'Gestione: dopo la sospensione dei fondi USFS il 2025-12-05, operativo con supporti una tantum come CAL FIRE (2026-05-15).',
+  c6t:'Input: copertura del suolo · evapotraspirazione',
+  c6s:'CC = 0,6·ombra + 0,2·albedo + 0,2·ETI, T_air = T_ref + (1 − HM)·UHI_max. Fonti d’errore: pesi e costante di distanza ipotizzati (d_cool 450m).',
+  lblSh:'Quota d’ombra', lblAl:'Albedo', lblDist:'Distanza da un’area verde ≥ 2ha (m)', kCoolL:'Raffrescamento (°C)',
+  c6n:'HM: se la distanza ≤ d_cool, il maggiore tra il raffrescamento del parco (CC_park · decadimento con la distanza) e il CC del pixel; altrimenti il CC del pixel. Semplificato qui con CC_park = 0,8 e decadimento exp(−d/d_cool).',
+  c7h:'Tabella di confronto dei quattro strumenti', c7t:'Valori confrontabili solo in un’unica tabella',
+  thTool:'Strumento', thOut:'Prodotto', thRes:'Risoluzione · frequenza', thAcc:'Accesso · limiti', thErr:'Fonti d’errore · stato', thVal:'Valore in questo cruscotto',
+  r1a:'NDVI · riflettanza a 13 bande', r1b:'10m · 5 giorni · larghezza 290km', r1c:'Account CDSE gratuito (10.000 PU/mese)', r1d:'Data di acquisizione · nuvole · dimensione pixel',
+  r2a:'Temperatura superficiale ST (K→°C) · riflettanza', r2b:'30m · 16 giorni · lanciato nel 2021', r2d:'Ora di acquisizione · stagione · nuvole',
+  r3a:'Copertura % ± SE · superficie · benefici', r3b:'Punti casuali (esempio 500)', r3c:'Strumento web · .itrcnpy · PDF · CSV', r3d:'Dimensione del campione · operatore · finanziamento',
+  r4b:'Risoluzione del raster di input · 3.20.2', r4c:'LULC · ET0 · tabella biofisica · AOI', r4d:'Pesi · d_cool 450m ipotizzato',
+  c7src:'SentiWiki · CDSE Quotas FAQ · USGS Landsat C2 L2 · i-Tree Funding Status · InVEST User Guide · GitHub releases — tutti consultati il 2026-09-09 · account e chiavi a cura di ogni studente',
+  c8h:'Insight · registro indicatore ⑦',
+  i1:'<b>1. Due satelliti</b> — Sentinel-2 10m · 5 giorni, Landsat 9 30m · 16 giorni (USGS). Valori per pixel; fonti d’errore: data di acquisizione e nuvole.',
+  i2:'<b>2. i-Tree Canopy</b> — proporzione dalla lettura di punti casuali con errore standard.',
+  i3:'<b>3. InVEST</b> — modello di indice di raffrescamento da copertura del suolo ed evapotraspirazione; fonti d’errore: pesi e costante di distanza ipotizzati.',
+  lblSite:'Nome dell’area', btnCsv:'Esporta CSV indicatore ⑦', btnReset:'Reimposta',
+  c8n:'NDVI (CDSE), LST (USGS) e chioma (i-Tree) sono salvati in righe separate con la fonte distinta.'
+};
+const KO = {};
+document.querySelectorAll('[data-i]').forEach(el => KO[el.dataset.i] = el.innerHTML);
+document.querySelectorAll('[data-ip]').forEach(el => KO[el.dataset.ip] = el.placeholder);
+let lang = store.get('lang', 'ko');
+const tr = (ko, it) => lang === 'it' ? it : ko;
+function applyLang(){
+  const d = lang === 'it' ? IT : KO;
+  document.querySelectorAll('[data-i]').forEach(el => { const v = d[el.dataset.i]; if (v != null) el.innerHTML = v; });
+  document.querySelectorAll('[data-ip]').forEach(el => { const v = d[el.dataset.ip]; if (v != null) el.placeholder = v; });
+  document.documentElement.lang = lang;
+  document.title = tr('위성 녹지 판독 대시보드', 'Cruscotto del verde da satellite');
+  $('langBtn').textContent = tr('🇮🇹 Italiano', '🇰🇷 한국어');
+  $('reqPerMin').title = tr('분당 요청 수', 'Richieste al minuto');
+}
+$('langBtn').onclick = () => { lang = lang === 'it' ? 'ko' : 'it'; store.set('lang', lang); applyLang(); renderAll(); };
 
 $('themeBtn').onclick = () => {
   const r = document.documentElement;
@@ -299,18 +397,18 @@ function renderQuota(){
   const tb = $('quotaTbl').querySelector('tbody'); tb.innerHTML = '';
   quotas.forEach((q, i) => {
     const pp = Math.min(100, q.pu/PU_MONTH*100), cp = Math.min(100, q.cr/CR_MONTH*100);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${esc(q.name)}</td>
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${esc(q.name)}</td>
       <td>${q.pu.toLocaleString()} / 10,000<div class="bar"><i class="${pp>80?'hot':''}" style="width:${pp}%"></i></div></td>
       <td>${q.cr.toLocaleString()} / 10,000<div class="bar"><i class="${cp>80?'hot':''}" style="width:${cp}%"></i></div></td>
-      <td><button class="ghost" data-i="${i}" style="padding:2px 8px">삭제</button></td>`;
-    tb.appendChild(tr);
+      <td><button class="ghost" data-k="${i}" style="padding:2px 8px">${tr('삭제','Elimina')}</button></td>`;
+    tb.appendChild(row);
   });
-  tb.querySelectorAll('button').forEach(b => b.onclick = () => { quotas.splice(+b.dataset.i,1); store.set('quotas',quotas); renderQuota(); });
+  tb.querySelectorAll('button').forEach(b => b.onclick = () => { quotas.splice(+b.dataset.k,1); store.set('quotas',quotas); renderQuota(); });
   const per = (+$('reqPU').value||0) * (+$('reqPerMin').value||0);
   $('rateMsg').innerHTML = per > PU_MIN
-    ? `<span style="color:var(--warn)">분당 ${per} PU — 분당 300 PU 한도 초과. 요청 간격을 늘리세요.</span>`
-    : `분당 ${per} PU — 분당 300 PU 한도 이내.`;
+    ? `<span style="color:var(--warn)">${tr(`분당 ${per} PU — 분당 300 PU 한도 초과. 요청 간격을 늘리세요.`, `${per} PU/min — oltre il limite di 300 PU/min. Distanziare le richieste.`)}</span>`
+    : tr(`분당 ${per} PU — 분당 300 PU 한도 이내.`, `${per} PU/min — entro il limite di 300 PU/min.`);
   setBadge('b1', quotas.length > 0);
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -340,10 +438,10 @@ function renderScenes(){
   scenes.forEach(s => {
     const ok = s[3] <= cc && (!from || s[2] >= from) && (!to || s[2] <= to);
     if (ok && s[0] === picked) pickedOk = true;
-    const tr = document.createElement('tr'); if (!ok) tr.className = 'off';
-    tr.innerHTML = `<td><input type="radio" name="sc" value="${s[0]}" ${s[0]===picked?'checked':''} ${ok?'':'disabled'}></td>
+    const row = document.createElement('tr'); if (!ok) row.className = 'off';
+    row.innerHTML = `<td><input type="radio" name="sc" value="${s[0]}" ${s[0]===picked?'checked':''} ${ok?'':'disabled'}></td>
       <td style="font-family:monospace;font-size:11px;word-break:break-all">${s[0]}</td><td>${s[1]}</td><td>${s[2]}</td><td>${s[3].toFixed(1)}%</td>`;
-    tb.appendChild(tr);
+    tb.appendChild(row);
   });
   tb.querySelectorAll('input').forEach(r => r.onchange = () => { picked = r.value; store.set('picked', picked); renderScenes(); renderTable(); });
   setBadge('b2', pickedOk);
@@ -387,7 +485,7 @@ function genRaster(){
     let sum=0, inC=0;
     for (let dy=0; dy<3; dy++) for (let dx=0; dx<3; dx++){ const i=(gy*3+dy)*N+gx*3+dx; sum+=NDVI[i]; inC+=mask[i]; }
     const nd = sum/9;
-    const c = 41 - 14*nd + (rng()-0.5)*6;                 // °C
+    const c = 41 - 14*nd + (rng()-0.5)*6;                   // °C
     const dn = Math.round((c + 273.15 - 149.0)/0.00341802);  // 역산한 ST_B10 DN
     LST.push({nd, c: dn*0.00341802+149.0-273.15, dn, inside: inC >= 5});
   }
@@ -402,6 +500,67 @@ function ramp(v){
   return stops[stops.length-1][1];
 }
 $('ramp').style.background = `linear-gradient(90deg,${[-1,-0.5,0,0.2,0.4,0.6,1].map(v=>`rgb(${ramp(v)})`).join(',')})`;
+
+/* ---------- 위성 사진 지도 (Leaflet + Esri World Imagery) ---------- */
+// 60×60 격자(600m)를 상명대 서울캠퍼스 부근에 배치한 예시 좌표
+const CENTER = [37.6026, 126.9554];
+const DLAT = PX/111320, DLNG = PX/(111320*Math.cos(CENTER[0]*Math.PI/180));
+const NORTH = CENTER[0] + DLAT*N/2, WEST = CENTER[1] - DLNG*N/2;
+const toLL = (x, y) => [NORTH - y*DLAT, WEST + x*DLNG];
+let map = null, ndviLayer, polyLayer, ptsLayer, layerCtl, baseSat, baseOsm;
+function initMap(){
+  if (map || !window.L) return;
+  map = L.map('satMap', {attributionControl:true});
+  baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'});
+  baseOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'});
+  baseSat.addTo(map);
+  const bounds = [toLL(0, N), toLL(N, 0)];
+  ndviLayer = L.imageOverlay(ndviDataUrl(), bounds, {opacity: +$('op').value/100}).addTo(map);
+  polyLayer = L.polygon(poly.map(([x,y]) => toLL(x,y)), {color:'#e53935', weight:3, fillOpacity:0.08}).addTo(map);
+  ptsLayer = L.layerGroup().addTo(map);
+  map.fitBounds(bounds);
+  buildLayerCtl();
+}
+function buildLayerCtl(){
+  if (!map) return;
+  if (layerCtl) layerCtl.remove();
+  layerCtl = L.control.layers(
+    {[tr('위성 사진','Foto satellitare')]: baseSat, [tr('일반 지도','Mappa stradale')]: baseOsm},
+    {'NDVI': ndviLayer, [tr('대상지 경계','Confine')]: polyLayer, [tr('i-Tree 표본점','Punti i-Tree')]: ptsLayer}
+  ).addTo(map);
+}
+function ndviDataUrl(){
+  const c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'), img = g.createImageData(N, N);
+  for (let i=0; i<N*N; i++){
+    const [r,gg,b] = ramp(NDVI[i]);
+    img.data.set([r, gg, b, mask[i] ? 255 : 110], i*4);
+  }
+  g.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
+function renderSat(){
+  if (!map) return;
+  ndviLayer.setUrl(ndviDataUrl());
+  ptsLayer.clearLayers();
+  (lastPts || []).forEach(p => L.circleMarker(toLL(p.x, p.y), {
+    radius: 3, weight: 1, color: '#111', fillColor: p.tree ? '#0b5' : '#fff', fillOpacity: 1}).addTo(ptsLayer));
+}
+function setView(sat){
+  $('vSat').classList.toggle('on', sat); $('vGrid').classList.toggle('on', !sat);
+  $('ndviMap').hidden = sat; $('satBox').hidden = !sat;
+  store.set('view', sat ? 'sat' : 'grid');
+  if (sat){
+    if (!window.L){ $('satMap').textContent = tr('지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.', 'Impossibile caricare la libreria della mappa. Verificare la connessione.'); return; }
+    initMap(); setTimeout(() => map.invalidateSize(), 0); renderSat();
+  }
+}
+$('vGrid').onclick = () => setView(false);
+$('vSat').onclick = () => setView(true);
+$('op').oninput = () => { $('opV').textContent = $('op').value; if (ndviLayer) ndviLayer.setOpacity(+$('op').value/100); };
+
 let stats = {};
 function renderNdvi(){
   const th = +$('th').value; $('thV').textContent = th.toFixed(2);
@@ -415,7 +574,6 @@ function renderNdvi(){
   g.beginPath(); poly.forEach(([x,y],k) => k ? g.lineTo(x*s,y*s) : g.moveTo(x*s,y*s)); g.closePath();
   g.fillStyle = 'rgba(229,57,53,0.12)'; g.fill();
   g.lineWidth = 2.5; g.strokeStyle = '#e53935'; g.stroke();
-  // 북쪽 표시
   g.fillStyle='#173a7a'; g.font='bold 12px sans-serif'; g.fillText('N ↑', 8, 18);
   if (lastPts) lastPts.forEach(p => { g.beginPath(); g.arc(p.x*s, p.y*s, 2.2, 0, 7); g.fillStyle = p.tree ? '#0b5' : '#fff'; g.fill(); g.lineWidth=.8; g.strokeStyle='#111'; g.stroke(); });
 
@@ -438,12 +596,14 @@ function renderNdvi(){
   [-0.2,0,0.2,0.4,0.6,0.8,1.0].forEach(v => hg.fillText(v.toFixed(1), Math.min(W-14,(v+0.2)/0.05*bw-6), H+13));
   const tx = (th+0.2)/0.05*bw; hg.strokeStyle = css('--warn'); hg.lineWidth = 2; hg.beginPath(); hg.moveTo(tx,0); hg.lineTo(tx,H); hg.stroke();
   setBadge('b4', !!currentScene());
+  renderSat();
 }
 function renderPixel(){
   const b4 = +$('pB4').value, b8 = +$('pB8').value, n = (b8-b4)/(b8+b4), th = +$('th').value;
+  const cls = n>=th ? `<b style="color:var(--ok)">${tr('녹지','verde')}</b>` : n<0 ? tr('수면 등(음수)','acqua o simili (negativo)') : tr('건물·도로 등 비녹지','non verde (edifici, strade)');
   $('pOut').innerHTML = Number.isFinite(n)
-    ? `NDVI = (${b8} − ${b4}) / (${b8} + ${b4}) = <b>${n.toFixed(3)}</b> → ${n>=th?'<b style="color:var(--ok)">녹지</b>':n<0?'수면 등(음수)':'건물·도로 등 비녹지'} (범위 −1~+1)`
-    : '반사도 합이 0이면 계산할 수 없습니다.';
+    ? `NDVI = (${b8} − ${b4}) / (${b8} + ${b4}) = <b>${n.toFixed(3)}</b> → ${cls} (${tr('범위','intervallo')} −1~+1)`
+    : tr('반사도 합이 0이면 계산할 수 없습니다.', 'Impossibile calcolare se la somma delle riflettanze è 0.');
 }
 $('th').oninput = () => { renderNdvi(); renderPixel(); renderTree(); renderTable(); };
 $('pB4').oninput = $('pB8').oninput = renderPixel;
@@ -462,16 +622,16 @@ function renderLst(){
   const r = sxy/Math.sqrt(sxx*syy);
   lstStats = {mean:m, r, n:ins.length};
   $('kLst').textContent = m.toFixed(1)+'°C'; $('kR').textContent = r.toFixed(2);
-  const cv = $('scatter'), g = cv.getContext('2d'), W = cv.width, H = cv.height, L=34, B=22;
+  const cv = $('scatter'), g = cv.getContext('2d'), W = cv.width, H = cv.height, Lm=34, B=22;
   g.clearRect(0,0,W,H);
-  const xs = v => L + (v+0.1)/0.9*(W-L-8), ys = v => H-B - (v-24)/22*(H-B-8);
+  const xs = v => Lm + (v+0.1)/0.9*(W-Lm-8), ys = v => H-B - (v-24)/22*(H-B-8);
   g.strokeStyle = css('--line'); g.fillStyle = css('--ink2'); g.font='10px sans-serif';
-  [25,30,35,40,45].forEach(v => { g.beginPath(); g.moveTo(L,ys(v)); g.lineTo(W-8,ys(v)); g.stroke(); g.fillText(v+'°',4,ys(v)+3); });
+  [25,30,35,40,45].forEach(v => { g.beginPath(); g.moveTo(Lm,ys(v)); g.lineTo(W-8,ys(v)); g.stroke(); g.fillText(v+'°',4,ys(v)+3); });
   [0,0.2,0.4,0.6,0.8].forEach(v => g.fillText(v.toFixed(1), xs(v)-8, H-6));
   LST.forEach(p => { g.beginPath(); g.arc(xs(p.nd), ys(p.c), p.inside?2.6:1.8, 0, 7);
     g.fillStyle = p.inside ? css('--warn') : css('--ink2'); g.globalAlpha = p.inside ? .9 : .3; g.fill(); });
   g.globalAlpha = 1;
-  g.fillStyle = css('--ink2'); g.fillText('NDVI (x) · LST °C (y) · 주황 = 경계 안', L+4, 12);
+  g.fillStyle = css('--ink2'); g.fillText(tr('NDVI (x) · LST °C (y) · 주황 = 경계 안', 'NDVI (x) · LST °C (y) · arancione = nel confine'), Lm+4, 12);
 }
 $('dn').oninput = renderLst;
 
@@ -519,31 +679,32 @@ function renderInvest(){
 /* ---------- 대조표 · 상태 ---------- */
 function renderTable(){
   const s = currentScene();
-  $('tS2').innerHTML = `NDVI 평균 ${fmt(stats.mean,3)}<br><span class="pill">${s ? s[2]+' · 구름 '+s[3]+'%' : '장면 미선택'}</span>`;
-  $('tL9').innerHTML = `LST 평균 ${fmt(lstStats.mean,1)}°C<br><span class="pill">r = ${fmt(lstStats.r,2)}</span>`;
+  $('tS2').innerHTML = `${tr('NDVI 평균','NDVI medio')} ${fmt(stats.mean,3)}<br><span class="pill">${s ? s[2]+' · '+tr('구름','nuvole')+' '+s[3]+'%' : tr('장면 미선택','nessuna scena')}</span>`;
+  $('tL9').innerHTML = `${tr('LST 평균','LST media')} ${fmt(lstStats.mean,1)}°C<br><span class="pill">r = ${fmt(lstStats.r,2)}</span>`;
   $('tIT').innerHTML = treeStats.n ? `${(treeStats.p*100).toFixed(1)}% ± ${(treeStats.se*100).toFixed(2)}<br><span class="pill">N=${treeStats.n}</span>` : '–';
   $('tIV').innerHTML = `T_air ${fmt(ivStats.tair,2)}°C<br><span class="pill">HM ${fmt(ivStats.hm,2)}</span>`;
 }
-function setBadge(id, ok){ const b = $(id); b.textContent = ok ? '완료' : '대기'; b.classList.toggle('done', ok); }
+function setBadge(id, ok){ const b = $(id); b.textContent = ok ? tr('완료','Completato') : tr('대기','In attesa'); b.classList.toggle('done', ok); }
 
 /* ---------- 내보내기 ---------- */
 $('exportCsv').onclick = () => {
   const s = currentScene(), site = $('siteName').value, today = new Date().toISOString().slice(0,10);
+  const S2 = 'CDSE Sentinel-2 L2A';
   const rows = [
-    ['대상지','지표','값','단위/오차','출처','장면·취득일','비고'],
-    [site,'⑦ NDVI 경계 평균', stats.mean.toFixed(4), 'SD '+stats.sd.toFixed(4), 'CDSE Sentinel-2 L2A', s ? s[0]+' / '+s[2]+' / 구름 '+s[3]+'%' : '미선택', '10m B4·B8, 화소 '+stats.n],
-    [site,'⑦ NDVI 중앙값', stats.median.toFixed(4), '', 'CDSE Sentinel-2 L2A', s ? s[2] : '', ''],
-    [site,'⑦ 녹지 화소 비율', (stats.green*100).toFixed(2), '% (NDVI ≥ '+stats.th.toFixed(2)+')', 'CDSE Sentinel-2 L2A', s ? s[2] : '', '임계값은 가정'],
-    [site,'경계 면적', stats.areaHa.toFixed(2), 'ha', '경계 화소 수 × 100㎡', '', ''],
-    [site,'LST 경계 평균', lstStats.mean.toFixed(2), '°C', 'USGS EarthExplorer C2 L2 ST_B10', '', 'DN×0.00341802+149.0−273.15, LST≠기온'],
-    [site,'캐노피 피복', treeStats.n ? (treeStats.p*100).toFixed(2) : '', treeStats.n ? '± '+(treeStats.se*100).toFixed(2)+'%p SE' : '', 'i-Tree Canopy 무작위 점', '', treeStats.n ? 'N='+treeStats.n+', 수목 '+treeStats.k : ''],
-    [site,'InVEST T_air', ivStats.tair.toFixed(2), '°C (HM '+ivStats.hm.toFixed(2)+')', 'InVEST Urban Cooling 3.20.2', '', 'd_cool 450m 가정'],
-    ['','','','','','','기록일 '+today]
+    tr(['대상지','지표','값','단위/오차','출처','장면·취득일','비고'], ['Area','Indicatore','Valore','Unità/errore','Fonte','Scena · acquisizione','Note']),
+    [site, tr('⑦ NDVI 경계 평균','⑦ NDVI medio nel confine'), stats.mean.toFixed(4), 'SD '+stats.sd.toFixed(4), S2, s ? s[0]+' / '+s[2]+' / '+tr('구름','nuvole')+' '+s[3]+'%' : tr('미선택','nessuna'), tr('10m B4·B8, 화소 ','10m B4·B8, pixel ')+stats.n],
+    [site, tr('⑦ NDVI 중앙값','⑦ NDVI mediano'), stats.median.toFixed(4), '', S2, s ? s[2] : '', ''],
+    [site, tr('⑦ 녹지 화소 비율','⑦ Quota di pixel verdi'), (stats.green*100).toFixed(2), '% (NDVI ≥ '+stats.th.toFixed(2)+')', S2, s ? s[2] : '', tr('임계값은 가정','soglia ipotizzata')],
+    [site, tr('경계 면적','Superficie del confine'), stats.areaHa.toFixed(2), 'ha', tr('경계 화소 수 × 100㎡','pixel nel confine × 100㎡'), '', ''],
+    [site, tr('LST 경계 평균','LST media nel confine'), lstStats.mean.toFixed(2), '°C', 'USGS EarthExplorer C2 L2 ST_B10', '', tr('DN×0.00341802+149.0−273.15, LST≠기온','DN×0.00341802+149.0−273.15, LST≠temperatura dell’aria')],
+    [site, tr('캐노피 피복','Copertura arborea'), treeStats.n ? (treeStats.p*100).toFixed(2) : '', treeStats.n ? '± '+(treeStats.se*100).toFixed(2)+'%p SE' : '', tr('i-Tree Canopy 무작위 점','i-Tree Canopy punti casuali'), '', treeStats.n ? 'N='+treeStats.n+tr(', 수목 ',', alberi ')+treeStats.k : ''],
+    [site, 'InVEST T_air', ivStats.tair.toFixed(2), '°C (HM '+ivStats.hm.toFixed(2)+')', 'InVEST Urban Cooling 3.20.2', '', tr('d_cool 450m 가정','d_cool 450m ipotizzato')],
+    ['','','','','','', tr('기록일 ','Data di registrazione ')+today]
   ];
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-  a.download = `지표7_${site}_${today}.csv`; a.click();
+  a.download = `${tr('지표7','indicatore7')}_${site}_${today}.csv`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 $('resetAll').onclick = () => {
@@ -551,8 +712,10 @@ $('resetAll').onclick = () => {
   location.reload();
 };
 
-function renderAll(){ renderQuota(); renderScenes(); renderNdvi(); renderPixel(); renderLst(); renderTree(); renderInvest(); renderTable(); }
+function renderAll(){ renderQuota(); renderScenes(); renderNdvi(); renderPixel(); renderLst(); renderTree(); renderInvest(); renderTable(); buildLayerCtl(); }
+applyLang();
 genRaster(); renderAll();
+if (store.get('view', 'grid') === 'sat') setView(true);
 })();
 </script>
 </body>
