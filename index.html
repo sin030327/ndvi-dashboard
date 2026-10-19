@@ -103,7 +103,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
 <body>
 <header>
   <div class="sec" data-i="hdrSec">SECTION 1. 위성영상 기반 녹지 판독 — NDVI와 지표온도</div>
-  <h1 data-i="hdrH1">캠퍼스 녹지 판독 대시보드</h1>
+  <h1 data-i="hdrH1">천안캠퍼스 녹지 판독 대시보드</h1>
   <p data-i="hdrP">Sentinel-2 NDVI 4단계 · i-Tree 경계 · Landsat 9 ST 섭씨 환산 · 네 도구 대조 — 화면의 영상값은 <b>합성 예시 데이터</b>이며 실제 값으로 바꿔 입력할 수 있습니다.</p>
   <div class="tools">
     <button id="langBtn" title="Italiano / 한국어">🇮🇹 Italiano</button>
@@ -174,7 +174,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
             <div id="satMap"></div>
             <label><span data-i="lblOp">NDVI 투명도</span> <b id="opV">55</b>%</label>
             <input type="range" id="op" min="0" max="100" value="55">
-            <div class="note" data-i="satNote">위성 사진: Esri World Imagery. NDVI 격자와 경계는 상명대 서울캠퍼스 부근 600m 범위에 맞춘 예시입니다.</div>
+            <div class="note" data-i="satNote">위성 사진: Esri World Imagery. 붉은 경계는 OpenStreetMap의 상명대학교 천안캠퍼스 외곽선이며, NDVI 격자(600m)는 같은 위치에 맞춘 예시 값입니다.</div>
           </div>
           <div class="legend">−1<span class="ramp" id="ramp"></span>+1 <span style="margin-left:8px" data-i="legGrid">격자 10m · 60×60 화소</span></div>
         </div>
@@ -285,7 +285,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
       <div class="ins" data-i="i2"><b>2. i-Tree Canopy</b> — 무작위 점 판독 비율에 표준오차 병기.</div>
       <div class="ins" data-i="i3"><b>3. InVEST</b> — 토지피복·증발산 입력의 냉각 지수 모델, 오차 원천은 가중치·거리 상수 가정.</div>
       <label data-i="lblSite">대상지 이름</label>
-      <input type="text" id="siteName" value="상명대학교 캠퍼스">
+      <input type="text" id="siteName" value="상명대학교 천안캠퍼스">
       <div class="row" style="margin-top:10px">
         <button id="exportCsv" data-i="btnCsv">지표 ⑦ CSV 내보내기</button>
         <button class="ghost" id="resetAll" style="flex:0 0 auto" data-i="btnReset">초기화</button>
@@ -309,7 +309,7 @@ const fmt = (v, d=2) => Number.isFinite(v) ? v.toFixed(d) : '–';
 /* ---------- 언어 (한국어 / Italiano) ---------- */
 const IT = {
   hdrSec:'SEZIONE 1. Rilevamento del verde da immagini satellitari — NDVI e temperatura superficiale',
-  hdrH1:'Cruscotto del verde del campus',
+  hdrH1:'Cruscotto del verde — campus di Cheonan',
   hdrP:'4 fasi NDVI Sentinel-2 · confine i-Tree · conversione in °C della banda ST di Landsat 9 · confronto tra quattro strumenti — i valori delle immagini sono <b>dati di esempio sintetici</b> e possono essere sostituiti con valori reali.',
   themeBtn:'Cambia tema',
   s1b:'Account e quote', s1d:'Account CDSE per studente · registro PU/crediti',
@@ -329,7 +329,7 @@ const IT = {
   c3h:'③ Ricezione bande · ④ Calcolo NDVI', c3t:'Fonte: CDSE',
   c3s:'Delle 13 bande (4 a 10m · 6 a 20m · 3 a 60m) si usano solo le 2 bande a 10m: B4 (rosso) e B8 (vicino infrarosso). Linea rossa = confine dell’area (popolazione statistica).',
   vGrid:'Griglia NDVI', vSat:'Foto satellitare', lblOp:'Opacità NDVI',
-  satNote:'Foto satellitare: Esri World Imagery. La griglia NDVI e il confine sono un esempio posizionato su 600m vicino al campus di Seoul della Sangmyung University.',
+  satNote:'Foto satellitare: Esri World Imagery. Il confine rosso è il perimetro OpenStreetMap del campus di Cheonan della Sangmyung University; la griglia NDVI (600m) contiene valori di esempio nella stessa posizione.',
   legGrid:'griglia 10m · 60×60 pixel',
   lblTh:'Soglia del verde (ipotesi: ≥ 0,3)',
   kMeanL:'NDVI medio nel confine', kSdL:'Deviazione standard', kGreenL:'Quota di pixel verdi', kAreaL:'Superficie del confine (ha)',
@@ -421,15 +421,16 @@ $('reqPU').oninput = $('reqPerMin').oninput = renderQuota;
 
 /* ---------- ② 장면 선택 (예시 카탈로그) ---------- */
 const scenes = [
-  ['S2A_MSIL2A_20260512T021611_N0511_R003_T52SCG','S2A','2026-05-12',4.1],
-  ['S2B_MSIL2A_20260527T021609_N0511_R003_T52SCG','S2B','2026-05-27',38.6],
-  ['S2C_MSIL2A_20260611T021611_N0511_R003_T52SCG','S2C','2026-06-11',12.7],
-  ['S2A_MSIL2A_20260701T021611_N0511_R003_T52SCG','S2A','2026-07-01',71.3],
-  ['S2B_MSIL2A_20260816T021609_N0511_R003_T52SCG','S2B','2026-08-16',8.9],
-  ['S2C_MSIL2A_20260905T021611_N0511_R003_T52SCG','S2C','2026-09-05',2.4],
-  ['S2A_MSIL2A_20261010T021611_N0511_R003_T52SCG','S2A','2026-10-10',15.0]
+  ['S2A_MSIL2A_20260512T021611_N0511_R003_T52SCF','S2A','2026-05-12',4.1],
+  ['S2B_MSIL2A_20260527T021609_N0511_R003_T52SCF','S2B','2026-05-27',38.6],
+  ['S2C_MSIL2A_20260611T021611_N0511_R003_T52SCF','S2C','2026-06-11',12.7],
+  ['S2A_MSIL2A_20260701T021611_N0511_R003_T52SCF','S2A','2026-07-01',71.3],
+  ['S2B_MSIL2A_20260816T021609_N0511_R003_T52SCF','S2B','2026-08-16',8.9],
+  ['S2C_MSIL2A_20260905T021611_N0511_R003_T52SCF','S2C','2026-09-05',2.4],
+  ['S2A_MSIL2A_20261010T021611_N0511_R003_T52SCF','S2A','2026-10-10',15.0]
 ];
-let picked = store.get('picked', 'S2C_MSIL2A_20260905T021611_N0511_R003_T52SCG');
+let picked = store.get('picked', 'S2C_MSIL2A_20260905T021611_N0511_R003_T52SCF');
+if (!scenes.some(s => s[0] === picked)) picked = 'S2C_MSIL2A_20260905T021611_N0511_R003_T52SCF';
 function renderScenes(){
   const cc = +$('cc').value; $('ccV').textContent = cc;
   const from = $('dFrom').value, to = $('dTo').value;
@@ -454,8 +455,8 @@ function currentScene(){ return scenes.find(s => s[0] === picked); }
 const N = 60, PX = 10; // 60×60 화소, 10m
 let B4, B8, NDVI, LST, mask, seed = store.get('seed', 7);
 function rng(){ seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
-// 대상지 경계 (슬라이드의 붉은 다각형 형태를 화소 좌표로 단순화)
-const poly = [[18,6],[30,6],[30,22],[54,22],[55,46],[42,50],[34,47],[24,50],[8,52],[14,30]];
+// 대상지 경계: OpenStreetMap '상명대학교 천안캠퍼스'(way 231288273) 외곽선을 10m 화소 좌표로 변환·단순화
+const poly = [[2.5,19.7],[4.1,24.7],[4.1,28.8],[3.2,33.3],[18.8,41.1],[19.7,39.4],[32.4,45.6],[38.5,49.2],[45.3,53.6],[49.1,54.7],[48.6,47.7],[46.5,45.1],[47.6,41.7],[48.1,35.2],[48.8,32.1],[50.4,28.4],[53.8,24.2],[54.4,20.0],[55.0,18.4],[57.2,16.9],[57.5,14.7],[55.7,12.5],[52.9,10.0],[51.5,7.9],[49.8,6.1],[43.8,5.3],[42.0,6.7],[40.8,9.0],[35.8,9.6],[33.0,9.5],[30.3,10.3],[27.4,10.2],[24.1,10.3],[22.0,11.8],[21.6,13.6],[21.3,16.8],[12.7,15.8],[11.0,14.8],[10.7,11.4],[11.6,9.8],[10.4,7.9],[8.0,8.0],[5.7,10.0],[4.5,11.9],[3.2,14.1]];
 function inPoly(x, y){
   let c = false;
   for (let i=0, j=poly.length-1; i<poly.length; j=i++){
@@ -502,12 +503,12 @@ function ramp(v){
 $('ramp').style.background = `linear-gradient(90deg,${[-1,-0.5,0,0.2,0.4,0.6,1].map(v=>`rgb(${ramp(v)})`).join(',')})`;
 
 /* ---------- 위성 사진 지도 (Leaflet + Esri World Imagery) ---------- */
-// 60×60 격자(600m)를 상명대 서울캠퍼스 부근에 배치한 예시 좌표
-const CENTER = [37.6026, 126.9554];
+// 60×60 격자(600m)의 중심 = 상명대 천안캠퍼스(충남 천안시 동남구 안서동) 경계 상자 중심
+const CENTER = [36.83304, 127.17937];
 const DLAT = PX/111320, DLNG = PX/(111320*Math.cos(CENTER[0]*Math.PI/180));
 const NORTH = CENTER[0] + DLAT*N/2, WEST = CENTER[1] - DLNG*N/2;
 const toLL = (x, y) => [NORTH - y*DLAT, WEST + x*DLNG];
-let map = null, ndviLayer, polyLayer, ptsLayer, layerCtl, baseSat, baseOsm;
+let fitted = false, map = null, ndviLayer, polyLayer, ptsLayer, layerCtl, baseSat, baseOsm;
 function initMap(){
   if (map || !window.L) return;
   map = L.map('satMap', {attributionControl:true});
@@ -554,7 +555,8 @@ function setView(sat){
   store.set('view', sat ? 'sat' : 'grid');
   if (sat){
     if (!window.L){ $('satMap').textContent = tr('지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.', 'Impossibile caricare la libreria della mappa. Verificare la connessione.'); return; }
-    initMap(); setTimeout(() => map.invalidateSize(), 0); renderSat();
+    initMap(); renderSat();
+    setTimeout(() => { map.invalidateSize(); if (!fitted){ map.fitBounds([toLL(0, N), toLL(N, 0)]); fitted = true; } }, 0);
   }
 }
 $('vGrid').onclick = () => setView(false);
