@@ -1,0 +1,14 @@
+# 제출용(학번 포함) — 공개 저장소에서 제외
+제출/
+
+# Python · OS
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini
+~$*
+team_private.txt
+.claude/
+
+# 보고서 원본(학번 포함)
+outputs/report.html
