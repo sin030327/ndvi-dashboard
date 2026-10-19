@@ -17,7 +17,7 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Poppins","Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.55;overflow-x:hidden}
+body{word-break:keep-all;overflow-wrap:break-word;margin:0;background:var(--bg);color:var(--ink);font-family:"Poppins","Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.55;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 
 /* ---------- 상단 내비게이션 ---------- */
@@ -30,7 +30,7 @@ a{color:inherit;text-decoration:none}
 #langBtn{background:#fff;color:#000;border:0;border-radius:99px;padding:9px 20px;font-weight:500;font-size:12px}
 
 /* ---------- 히어로 ---------- */
-.hero{position:relative;height:860px;max-width:1280px;margin:0 auto;padding:0 32px}
+.hero{position:relative;height:860px;max-width:1280px;margin:0 auto;padding:0 32px;overflow-x:clip}
 .blob{position:absolute;background:#000;pointer-events:none;
   border-radius:42% 58% 63% 37% / 41% 44% 56% 59%;animation:morph 14s ease-in-out infinite alternate}
 .blob.b1{width:470px;height:560px;left:31%;top:-40px;
@@ -96,7 +96,9 @@ input:focus{outline:none;border-color:#ff7a45}
 input[type=range]{width:100%;accent-color:#ff7a45}
 input[type=radio]{accent-color:#ff7a45}
 .row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
-button{font:inherit;font-size:13px;padding:8px 18px;border-radius:99px;border:0;background:linear-gradient(90deg,#ff9a6a,#ff6b3d);color:#1a0a04;font-weight:500;cursor:pointer}
+.row.flexwrap{flex-wrap:wrap}.row.flexwrap>div{min-width:120px}
+.row>.btncell{flex:0 0 auto;display:flex;align-items:flex-end}
+button{white-space:nowrap;font:inherit;font-size:13px;padding:8px 18px;border-radius:99px;border:0;background:linear-gradient(90deg,#ff9a6a,#ff6b3d);color:#1a0a04;font-weight:500;cursor:pointer}
 button.ghost{background:transparent;color:#fff;border:1.5px solid #ff7a45;font-weight:400}
 button:hover{filter:brightness(1.08)}
 .seg{display:inline-flex;padding:4px;border-radius:99px;background:#0b0b0f;border:1px solid var(--line);margin-bottom:10px}
@@ -323,10 +325,10 @@ footer{text-align:center;color:var(--ink2);font-size:11px;padding:0 16px 40px}
     <section class="card c6">
       <h2><span data-i="c5h">i-Tree Canopy 무작위 점 판독</span> <span class="tag" data-i="c5t">경계 = 통계 모집단</span></h2>
       <p class="sub" data-i="c5s">경계 안 무작위 점(예제 500점)을 수목/비수목으로 판독 → 피복 % ± 표준오차(SE). NDVI 화소 결과와 <b>분리 기록</b>합니다.</p>
-      <div class="row">
+      <div class="row flexwrap">
         <div><label data-i="lblN">표본점 수 N</label><input type="number" id="nPts" value="500" min="10" max="5000"></div>
         <div><label data-i="lblTree">수목 판독 점 수</label><input type="number" id="nTree" value="0" min="0"></div>
-        <div style="display:flex;align-items:flex-end"><button id="simPts" data-i="btnSim">NDVI 지도에서 무작위 판독</button></div>
+        <div class="btncell"><button id="simPts" data-i="btnSim">NDVI 지도에서 무작위 판독</button></div>
       </div>
       <div class="kpis">
         <div class="kpi"><div class="v" id="kCan">–</div><div class="l" data-i="kCanL">캐노피 피복 %</div></div>
