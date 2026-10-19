@@ -4,114 +4,211 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>위성 녹지 판독 대시보드</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
-  --bg:#f3f4f7; --card:#ffffff; --ink:#1b2440; --ink2:#5b6478; --line:#dfe3ea;
-  --navy:#173a7a; --navy2:#0f2a5c; --accent:#2f6fd6; --warn:#d9572b; --ok:#2e8b57;
-  --chip:#eef2fa;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0f1420; --card:#171e2e; --ink:#e7ebf3; --ink2:#9aa4b8; --line:#2a3348;
-    --navy:#7fa8f0; --navy2:#9dbdf5; --accent:#6aa0f5; --warn:#f08a5d; --ok:#5cc38a; --chip:#1f2940;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0f1420; --card:#171e2e; --ink:#e7ebf3; --ink2:#9aa4b8; --line:#2a3348;
-  --navy:#7fa8f0; --navy2:#9dbdf5; --accent:#6aa0f5; --warn:#f08a5d; --ok:#5cc38a; --chip:#1f2940;
+  --bg:#050507; --card:#0e0e12; --ink:#f4f4f6; --ink2:#9a9aa6; --line:rgba(255,255,255,.09);
+  --navy:#ff7a45; --navy2:#ffffff; --accent:#ff7a45; --accent2:#5b6cff; --warn:#7b86ff; --ok:#3ecf8e;
+  --chip:rgba(255,255,255,.05); --field:#0b0b0f;
+  color-scheme: dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5}
-header{background:var(--card);border-bottom:1px solid var(--line);padding:18px 24px;position:relative}
-header .sec{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--navy)}
-header .sec::before{content:"";width:5px;height:16px;background:var(--navy);flex:0 0 auto}
-header h1{margin:6px 0 2px;font-size:24px;color:var(--navy2)}
-header p{margin:0;color:var(--ink2);font-size:13px;max-width:900px}
-.tools{position:absolute;top:18px;right:24px;display:flex;gap:8px}
-.wrap{max-width:1280px;margin:0 auto;padding:20px 24px 48px}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;position:relative}
-.step .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:13px;margin-right:6px}
-:root[data-theme="dark"] .step .n{color:#0f1420}
-.step b{font-size:14px}
-.step .st{margin-top:6px;font-size:12px;color:var(--ink2)}
-.step .badge{position:absolute;top:12px;right:12px;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--ink2)}
-.step .badge.done{background:var(--ok);color:#fff}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Poppins","Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.55;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+
+/* ---------- 상단 내비게이션 ---------- */
+.nav{position:sticky;top:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 32px;background:linear-gradient(#050507ee,#05050700)}
+.logo{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:99px;background:#111116;border:1px solid var(--line);font-size:13px;font-weight:500}
+.logo i{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 200deg,#ff7a45,#ff3d2e,#5b6cff,#ff7a45);box-shadow:0 0 12px #ff7a4588}
+.links{display:flex;gap:4px;padding:6px;border-radius:99px;background:#111116;border:1px solid var(--line)}
+.links a{padding:6px 18px;border-radius:99px;font-size:12px;color:#d6d6de}
+.links a:hover{background:rgba(255,255,255,.06);color:#fff}
+#langBtn{background:#fff;color:#000;border:0;border-radius:99px;padding:9px 20px;font-weight:500;font-size:12px}
+
+/* ---------- 히어로 ---------- */
+.hero{position:relative;height:860px;max-width:1280px;margin:0 auto;padding:0 32px}
+.blob{position:absolute;background:#000;pointer-events:none;
+  border-radius:42% 58% 63% 37% / 41% 44% 56% 59%;animation:morph 14s ease-in-out infinite alternate}
+.blob.b1{width:470px;height:560px;left:31%;top:-40px;
+  box-shadow:inset 28px -18px 50px rgba(255,92,40,.95),inset -40px 50px 90px rgba(91,108,255,.75),inset 0 0 160px rgba(255,61,46,.35),0 0 120px rgba(255,92,40,.18)}
+.blob.b2{width:600px;height:520px;left:22%;top:500px;animation-duration:18s;
+  box-shadow:inset 30px 40px 70px rgba(255,122,69,.9),inset -30px -60px 90px rgba(91,108,255,.85),inset 0 0 200px rgba(255,61,46,.15),0 0 140px rgba(91,108,255,.15)}
+.blob.b3{width:240px;height:300px;right:-90px;top:300px;animation-duration:11s;
+  box-shadow:inset 20px 10px 40px rgba(91,108,255,.9),inset -10px -20px 50px rgba(255,122,69,.7)}
+@keyframes morph{
+  0%{border-radius:42% 58% 63% 37% / 41% 44% 56% 59%;transform:rotate(0deg) translateY(0)}
+  50%{border-radius:58% 42% 38% 62% / 55% 37% 63% 45%;transform:rotate(8deg) translateY(12px)}
+  100%{border-radius:36% 64% 52% 48% / 62% 50% 50% 38%;transform:rotate(-6deg) translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){.blob{animation:none}}
+.big{margin:0;font-weight:400;letter-spacing:-.04em;line-height:.9;font-size:clamp(64px,13vw,176px);color:#fff}
+.big span{position:absolute;text-shadow:0 0 40px rgba(0,0,0,.35)}
+.big .w1{left:5%;top:140px}.big .w2{left:58%;top:230px;opacity:.92}.big .w3{left:26%;top:350px}
+.eyebrow{position:absolute;left:5%;top:96px;font-size:11px;letter-spacing:.2em;color:var(--ink2);max-width:46%}
+.hero-title{position:absolute;left:5%;top:332px;width:230px;font-size:14px;line-height:1.4;color:#e8e8ee}
+.stat{position:absolute;color:#fff}
+.stat .v{font-size:34px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .l{font-size:11px;color:#cfcfd8}
+.stat::after{content:"";position:absolute;height:1px;width:56px;background:rgba(255,255,255,.4)}
+.st1{right:12%;top:110px}.st1::after{left:-72px;top:44px;transform:rotate(-28deg)}
+.st2{left:5%;top:450px}.st2::after{left:118px;top:24px;transform:rotate(-8deg)}
+.st3{right:16%;top:505px}.st3::after{left:20px;top:-48px;transform:rotate(68deg)}
+.cta{position:absolute;left:50%;top:630px;transform:translateX(-50%);display:flex;align-items:center;gap:16px;padding:6px 6px 6px 22px;border-radius:99px;background:rgba(20,20,26,.8);backdrop-filter:blur(8px);border:1px solid var(--line);font-size:12px;white-space:nowrap}
+.btn-or{display:inline-block;padding:9px 22px;border-radius:99px;background:linear-gradient(90deg,#ff9a6a,#ff6b3d);color:#1a0a04;font-weight:500;font-size:12px}
+.hero-desc{position:absolute;right:5%;top:690px;width:360px;font-size:13px;color:#d7d7df}
+
+/* ---------- 데이터 출처 줄 ---------- */
+.logos{max-width:1280px;margin:0 auto;padding:40px 32px 0;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.logos div{height:96px;border-radius:18px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:22px;font-weight:600;letter-spacing:-.02em;color:#fff;
+  background:radial-gradient(120% 120% at 0% 100%,rgba(255,122,69,.10),transparent 60%),#0c0c10;border:1px solid var(--line)}
+.logos small{display:block;font-size:10px;font-weight:400;color:var(--ink2);letter-spacing:0}
+.tagrow{max-width:1080px;margin:0 auto;padding:110px 32px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.tagrow p{margin:0;font-size:17px;color:#d7d7df;font-weight:300;max-width:520px}
+.btn-line{padding:11px 40px;border-radius:99px;border:1.5px solid #ff7a45;font-size:13px;box-shadow:inset 0 0 0 1px rgba(91,108,255,.25);white-space:nowrap}
+.btn-line:hover{background:rgba(255,122,69,.1)}
+.sec-title{text-align:center;font-weight:400;font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;margin:80px 0 34px;color:#fff;scroll-margin-top:80px}
+
+/* ---------- 대시보드 공통 ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:0 32px 80px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:10px}
+.step{position:relative;min-height:200px;padding:22px;border-radius:20px;border:1px solid var(--line);
+  background:linear-gradient(160deg,rgba(52,62,160,.38),rgba(14,14,18,.95) 60%)}
+.step:nth-child(2){background:radial-gradient(90% 80% at 50% 0%,rgba(255,122,69,.18),transparent 60%),#0e0e12}
+.step:nth-child(4){background:linear-gradient(200deg,rgba(52,62,160,.38),rgba(14,14,18,.95) 60%)}
+.step .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;margin-bottom:26px;font-weight:600;font-size:13px;color:#1a0a04;background:linear-gradient(135deg,#ffb08a,#ff6b3d)}
+.step b{display:block;font-size:19px;font-weight:400;line-height:1.3;color:#fff}
+.step .st{margin-top:12px;font-size:12px;color:#c9c9d3}
+.step .badge{position:absolute;top:22px;right:22px;font-size:11px;padding:3px 10px;border-radius:99px;background:var(--chip);color:var(--ink2);border:1px solid var(--line)}
+.step .badge.done{background:rgba(62,207,142,.12);color:var(--ok);border-color:rgba(62,207,142,.4)}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
-.card h2{margin:0 0 4px;font-size:16px;color:var(--navy2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.card h2 .tag{font-size:11px;font-weight:500;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--ink2)}
-.card .sub{margin:0 0 12px;color:var(--ink2);font-size:12px}
+.card{border-radius:20px;padding:22px;min-width:0;border:1px solid var(--line);
+  background:linear-gradient(165deg,rgba(44,52,140,.22),rgba(14,14,18,.96) 45%);scroll-margin-top:80px}
+.card h2{margin:0 0 6px;font-size:19px;font-weight:400;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;letter-spacing:-.01em}
+.card h2 .tag{font-size:11px;font-weight:400;padding:3px 10px;border-radius:99px;background:rgba(255,122,69,.1);color:#ffb08a;border:1px solid rgba(255,122,69,.3)}
+.card .sub{margin:0 0 14px;color:var(--ink2);font-size:12px}
 .c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}
-label{display:block;font-size:12px;color:var(--ink2);margin:8px 0 3px}
-input[type=number],input[type=text],input[type=date],select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
-input[type=range]{width:100%}
+label{display:block;font-size:12px;color:var(--ink2);margin:10px 0 4px}
+input[type=number],input[type=text],input[type=date],select{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);font:inherit;color-scheme:dark}
+input:focus{outline:none;border-color:#ff7a45}
+input[type=range]{width:100%;accent-color:#ff7a45}
+input[type=radio]{accent-color:#ff7a45}
 .row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
-button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
-button.ghost{background:transparent;color:var(--accent)}
-.seg{display:inline-flex;border:1px solid var(--accent);border-radius:6px;overflow:hidden;margin-bottom:8px}
-.seg button{border:0;border-radius:0;background:transparent;color:var(--accent);padding:4px 12px}
-.seg button.on{background:var(--accent);color:#fff}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
-.kpi{background:var(--chip);border-radius:8px;padding:8px 10px}
-.kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+button{font:inherit;font-size:13px;padding:8px 18px;border-radius:99px;border:0;background:linear-gradient(90deg,#ff9a6a,#ff6b3d);color:#1a0a04;font-weight:500;cursor:pointer}
+button.ghost{background:transparent;color:#fff;border:1.5px solid #ff7a45;font-weight:400}
+button:hover{filter:brightness(1.08)}
+.seg{display:inline-flex;padding:4px;border-radius:99px;background:#0b0b0f;border:1px solid var(--line);margin-bottom:10px}
+.seg button{background:transparent;color:#cfcfd8;padding:5px 16px;font-weight:400}
+.seg button.on{background:linear-gradient(90deg,#ff9a6a,#ff6b3d);color:#1a0a04;font-weight:500}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.kpi{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.kpi .v{font-size:22px;font-weight:300;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .kpi .l{font-size:11px;color:var(--ink2)}
-.pipe{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
-.pipe .box{border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-align:center;min-width:90px}
-.pipe .box .v{font-weight:700;font-variant-numeric:tabular-nums}
+.pipe{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0}
+.pipe .box{border:1px solid var(--line);border-radius:12px;padding:6px 10px;text-align:center;min-width:86px;background:rgba(255,255,255,.03)}
+.pipe .box .v{font-weight:500;font-variant-numeric:tabular-nums}
 .pipe .box .l{font-size:11px;color:var(--ink2)}
-.pipe .box.hl{border-color:var(--warn);color:var(--warn)}
-.pipe .ar{color:var(--ink2)}
+.pipe .box.hl{border-color:#ff7a45;color:#ffb08a;box-shadow:0 0 24px rgba(255,122,69,.2)}
+.pipe .ar{color:var(--ink2);font-size:11px}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
-th{background:var(--navy);color:#fff;font-weight:500;padding:7px 8px;text-align:left}
-:root[data-theme="dark"] th{color:#0f1420}
-td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+th{color:#fff;font-weight:500;padding:9px 8px;text-align:left;border-bottom:1px solid rgba(255,122,69,.55);background:transparent}
+td{border-bottom:1px solid var(--line);padding:8px;vertical-align:top;color:#dcdce4}
 .tscroll{overflow-x:auto}
 .tscroll table{min-width:640px}
-tr.off td{color:var(--ink2);opacity:.55}
-.bar{height:8px;background:var(--chip);border-radius:99px;overflow:hidden}
-.bar>i{display:block;height:100%;background:var(--accent)}
-.bar>i.hot{background:var(--warn)}
+tr.off td{opacity:.35}
+.bar{height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-top:4px}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,#5b6cff,#8b95ff)}
+.bar>i.hot{background:linear-gradient(90deg,#ff9a6a,#ff3d2e)}
 .note{font-size:11px;color:var(--ink2);margin-top:8px}
-.mapwrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.mapwrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
 .mapcol{width:360px;max-width:100%}
-canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:block}
-#satMap{width:100%;aspect-ratio:1/1;border-radius:8px;border:1px solid var(--line)}
+canvas{max-width:100%;border-radius:14px;border:1px solid var(--line);display:block;background:#0b0b0f}
+#satMap{width:100%;aspect-ratio:1/1;border-radius:14px;border:1px solid var(--line);background:#0b0b0f}
 .leaflet-image-layer{image-rendering:pixelated}
-.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink2);margin-top:6px;flex-wrap:wrap}
-.legend .ramp{width:140px;height:8px;border-radius:4px}
-.ins{border-left:3px solid var(--navy);padding:4px 10px;margin:6px 0;font-size:12.5px;background:var(--chip);border-radius:0 6px 6px 0}
-.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--ink2);margin-right:4px}
+.leaflet-container{font-family:inherit}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink2);margin-top:8px;flex-wrap:wrap}
+.legend .ramp{width:140px;height:6px;border-radius:4px}
+.ins{border-left:2px solid #ff7a45;padding:6px 12px;margin:8px 0;font-size:12.5px;background:linear-gradient(90deg,rgba(255,122,69,.08),transparent);border-radius:0 10px 10px 0;color:#dcdce4}
+.ins b{color:#fff;font-weight:500}
+.pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:rgba(91,108,255,.15);color:#b7beff;margin-right:4px}
 .src{font-size:11px;color:var(--ink2)}
+.logos,.tagrow,.wrap,footer{position:relative;z-index:1}
+footer{text-align:center;color:var(--ink2);font-size:11px;padding:0 16px 40px}
+
 @media (max-width:980px){
   .steps{grid-template-columns:repeat(2,1fr)}
   .c4,.c5,.c6,.c7,.c8{grid-column:span 12}
+  .logos{grid-template-columns:repeat(3,1fr)}
+  .links{display:none}
 }
-@media (max-width:560px){
-  .wrap{padding:16px}
-  header{padding:16px}
+@media (max-width:760px){
+  .nav{padding:12px 16px}
+  .hero{height:auto;padding:24px 16px 40px;display:flex;flex-direction:column;gap:14px}
+  .blob.b1{width:300px;height:360px;left:20%;top:20px}
+  .blob.b2{width:340px;height:300px;left:-10%;top:420px}
+  .blob.b3{display:none}
+  .big,.big span,.eyebrow,.hero-title,.stat,.cta,.hero-desc{position:relative;left:auto;right:auto;top:auto;transform:none;width:auto;max-width:none}
+  .big{display:flex;flex-direction:column;font-size:clamp(64px,22vw,120px);margin-top:10px}
+  .big .w1,.big .w2,.big .w3{left:auto;top:auto}
+  .big .w2{align-self:flex-end}
+  .stat::after{display:none}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat .v{font-size:24px}
+  .cta{white-space:normal;flex-wrap:wrap;align-self:flex-start;border-radius:22px}
+  .logos{grid-template-columns:repeat(2,1fr);padding:24px 16px 0}
+  .logos div{height:76px;font-size:18px}
+  .tagrow{flex-direction:column;align-items:flex-start;padding:60px 16px 20px}
+  .wrap{padding:0 16px 60px}
   .steps{grid-template-columns:1fr}
+  .step{min-height:0}
   .kpis{grid-template-columns:repeat(2,1fr)}
-  .tools{position:static;margin-top:8px}
+  .sec-title{margin:56px 0 24px}
 }
 </style>
 </head>
 <body>
-<header>
-  <div class="sec" data-i="hdrSec">SECTION 1. 위성영상 기반 녹지 판독 — NDVI와 지표온도</div>
-  <h1 data-i="hdrH1">천안캠퍼스 녹지 판독 대시보드</h1>
-  <p data-i="hdrP">Sentinel-2 NDVI 4단계 · i-Tree 경계 · Landsat 9 ST 섭씨 환산 · 네 도구 대조 — 화면의 영상값은 <b>합성 예시 데이터</b>이며 실제 값으로 바꿔 입력할 수 있습니다.</p>
-  <div class="tools">
-    <button id="langBtn" title="Italiano / 한국어">🇮🇹 Italiano</button>
-    <button class="ghost" id="themeBtn" data-i="themeBtn">테마 전환</button>
+<nav class="nav">
+  <a class="logo" href="#top"><i></i>green·lens</a>
+  <div class="links">
+    <a href="#steps" data-i="navSteps">판독 절차</a>
+    <a href="#dash" data-i="navDash">대시보드</a>
+    <a href="#lst" data-i="navLst">지표온도</a>
+    <a href="#tools" data-i="navTools">도구 비교</a>
   </div>
-</header>
+  <button id="langBtn" title="Italiano / 한국어">🇮🇹 Italiano</button>
+</nav>
+
+<section class="hero" id="top">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="eyebrow" data-i="hdrSec">SECTION 1. 위성영상 기반 녹지 판독 — NDVI와 지표온도</div>
+  <h1 class="big" aria-label="read our green"><span class="w1">read</span><span class="w2">our</span><span class="w3">green</span></h1>
+  <div class="hero-title" data-i="hdrH1">천안캠퍼스 녹지 판독 대시보드</div>
+  <div class="stats">
+    <div class="stat st1"><div class="v" id="hArea">–</div><div class="l" data-i="hAreaL">대상지 경계 면적</div></div>
+    <div class="stat st2"><div class="v" id="hNdvi">–</div><div class="l" data-i="hNdviL">경계 안 NDVI 평균</div></div>
+    <div class="stat st3"><div class="v" id="hLst">–</div><div class="l" data-i="hLstL">경계 안 지표온도 평균</div></div>
+  </div>
+  <div class="cta"><span id="hScene">상명대학교 천안캠퍼스</span><a class="btn-or" href="#dash" data-i="heroBtn">대시보드 보기</a></div>
+  <p class="hero-desc" data-i="hdrP">Sentinel-2 NDVI 4단계 · i-Tree 경계 · Landsat 9 ST 섭씨 환산 · 네 도구 대조 — 화면의 영상값은 <b>합성 예시 데이터</b>이며 실제 값으로 바꿔 입력할 수 있습니다.</p>
+</section>
+
+<section class="logos" aria-label="data sources">
+  <div>Sentinel-2<small>&nbsp;CDSE</small></div>
+  <div>Landsat 9<small>&nbsp;USGS</small></div>
+  <div>i-Tree<small>&nbsp;Canopy</small></div>
+  <div>InVEST<small>&nbsp;3.20.2</small></div>
+  <div>OSM<small>&nbsp;boundary</small></div>
+</section>
+
+<section class="tagrow">
+  <p data-i="tagline">위성으로 캠퍼스의 녹지를 읽고, 지표온도와 함께 한 표에 기록합니다.</p>
+  <a class="btn-line" href="#export" data-i="tagBtn">지표 ⑦ 내보내기</a>
+</section>
 
 <div class="wrap">
+  <h2 class="sec-title" id="steps" data-i="stepsTitle">판독 절차</h2>
   <!-- 4단계 진행 상태 -->
   <div class="steps">
     <div class="step"><span class="n">1</span><b data-i="s1b">계정과 한도</b><span class="badge" id="b1"></span><div class="st" data-i="s1d">CDSE 학생별 계정 · PU/크레딧 기록</div></div>
@@ -120,6 +217,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
     <div class="step"><span class="n">4</span><b data-i="s4b">NDVI 계산</b><span class="badge" id="b4"></span><div class="st" data-i="s4d">(B8−B4)/(B8+B4) · 경계 안 평균·분포 → 지표 ⑦</div></div>
   </div>
 
+  <h2 class="sec-title" id="dash" data-i="dashTitle">대시보드</h2>
   <div class="grid">
     <!-- ① 계정과 한도 -->
     <section class="card c5">
@@ -201,7 +299,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
     </section>
 
     <!-- 지표온도 -->
-    <section class="card c4">
+    <section class="card c4" id="lst">
       <h2><span data-i="c4h">지표온도 환산</span> <span class="tag" data-i="c4t">출처: USGS</span></h2>
       <p class="sub" data-i="c4s">Landsat 9 Collection 2 Level-2 ST_B10 화소값(DN) → 켈빈 → 섭씨</p>
       <label data-i="lblDN">ST_B10 화소값 (DN)</label>
@@ -264,7 +362,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
     </section>
 
     <!-- 네 도구 대조표 -->
-    <section class="card c8">
+    <section class="card c8" id="tools">
       <h2><span data-i="c7h">네 도구 대조표</span> <span class="tag" data-i="c7t">단일 표 병기 시에만 값 비교 가능</span></h2>
       <div class="tscroll"><table>
         <thead><tr><th data-i="thTool">도구</th><th data-i="thOut">산출물</th><th data-i="thRes">해상도·주기</th><th data-i="thAcc">취득 경로·한도</th><th data-i="thErr">오차의 원천·상태</th><th data-i="thVal">이 대시보드 값</th></tr></thead>
@@ -279,7 +377,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
     </section>
 
     <!-- 인사이트 + 내보내기 -->
-    <section class="card c4">
+    <section class="card c4" id="export">
       <h2 data-i="c8h">Insight · 지표 ⑦ 기록</h2>
       <div class="ins" data-i="i1"><b>1. 위성 2종</b> — Sentinel-2 10m·5일, Landsat 9 30m·16일(USGS). 화소 단위 값 산출, 오차 원천은 취득일과 구름.</div>
       <div class="ins" data-i="i2"><b>2. i-Tree Canopy</b> — 무작위 점 판독 비율에 표준오차 병기.</div>
@@ -294,6 +392,7 @@ canvas{max-width:100%;border-radius:8px;border:1px solid var(--line);display:blo
     </section>
   </div>
 </div>
+<footer>상명대학교 천안캠퍼스 · Sentinel-2 · Landsat 9 · i-Tree · InVEST · OpenStreetMap</footer>
 
 <script>
 (function(){
@@ -311,7 +410,10 @@ const IT = {
   hdrSec:'SEZIONE 1. Rilevamento del verde da immagini satellitari — NDVI e temperatura superficiale',
   hdrH1:'Cruscotto del verde — campus di Cheonan',
   hdrP:'4 fasi NDVI Sentinel-2 · confine i-Tree · conversione in °C della banda ST di Landsat 9 · confronto tra quattro strumenti — i valori delle immagini sono <b>dati di esempio sintetici</b> e possono essere sostituiti con valori reali.',
-  themeBtn:'Cambia tema',
+  navSteps:'Procedura', navDash:'Cruscotto', navLst:'Temperatura', navTools:'Strumenti',
+  hAreaL:'Superficie del confine', hNdviL:'NDVI medio nel confine', hLstL:'Temperatura superficiale media', heroBtn:'Apri il cruscotto',
+  tagline:'Leggiamo il verde del campus dal satellite e lo registriamo in un’unica tabella con la temperatura superficiale.', tagBtn:'Esporta indicatore ⑦',
+  stepsTitle:'Procedura di lettura', dashTitle:'Cruscotto',
   s1b:'Account e quote', s1d:'Account CDSE per studente · registro PU/crediti',
   s2b:'Selezione della scena', s2d:'Scene L2A per area, periodo e copertura nuvolosa',
   s3b:'Ricezione delle bande', s3d:'Ricezione di B4 (665nm) e B8 (833nm) a 10m',
@@ -381,14 +483,6 @@ function applyLang(){
 }
 $('langBtn').onclick = () => { lang = lang === 'it' ? 'ko' : 'it'; store.set('lang', lang); applyLang(); renderAll(); };
 
-$('themeBtn').onclick = () => {
-  const r = document.documentElement;
-  const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  r.dataset.theme = dark ? 'light' : 'dark';
-  store.set('theme', r.dataset.theme);
-  renderAll();
-};
-const t = store.get('theme', null); if (t) document.documentElement.dataset.theme = t;
 
 /* ---------- ① 계정과 한도 ---------- */
 const PU_MONTH = 10000, PU_MIN = 300, CR_MONTH = 10000;
@@ -444,11 +538,11 @@ function renderScenes(){
       <td style="font-family:monospace;font-size:11px;word-break:break-all">${s[0]}</td><td>${s[1]}</td><td>${s[2]}</td><td>${s[3].toFixed(1)}%</td>`;
     tb.appendChild(row);
   });
-  tb.querySelectorAll('input').forEach(r => r.onchange = () => { picked = r.value; store.set('picked', picked); renderScenes(); renderTable(); });
+  tb.querySelectorAll('input').forEach(r => r.onchange = () => { picked = r.value; store.set('picked', picked); renderScenes(); renderTable(); renderHero(); });
   setBadge('b2', pickedOk);
   setBadge('b3', pickedOk);
 }
-$('cc').oninput = $('dFrom').onchange = $('dTo').onchange = () => { renderScenes(); renderTable(); };
+$('cc').oninput = $('dFrom').onchange = $('dTo').onchange = () => { renderScenes(); renderTable(); renderHero(); };
 function currentScene(){ return scenes.find(s => s[0] === picked); }
 
 /* ---------- ③④ 합성 B4/B8 래스터 ---------- */
@@ -576,7 +670,7 @@ function renderNdvi(){
   g.beginPath(); poly.forEach(([x,y],k) => k ? g.lineTo(x*s,y*s) : g.moveTo(x*s,y*s)); g.closePath();
   g.fillStyle = 'rgba(229,57,53,0.12)'; g.fill();
   g.lineWidth = 2.5; g.strokeStyle = '#e53935'; g.stroke();
-  g.fillStyle='#173a7a'; g.font='bold 12px sans-serif'; g.fillText('N ↑', 8, 18);
+  g.fillStyle='#111'; g.font='bold 12px sans-serif'; g.fillText('N ↑', 8, 18);
   if (lastPts) lastPts.forEach(p => { g.beginPath(); g.arc(p.x*s, p.y*s, 2.2, 0, 7); g.fillStyle = p.tree ? '#0b5' : '#fff'; g.fill(); g.lineWidth=.8; g.strokeStyle='#111'; g.stroke(); });
 
   const vals = []; for (let i=0;i<N*N;i++) if (mask[i]) vals.push(NDVI[i]);
@@ -714,7 +808,15 @@ $('resetAll').onclick = () => {
   location.reload();
 };
 
-function renderAll(){ renderQuota(); renderScenes(); renderNdvi(); renderPixel(); renderLst(); renderTree(); renderInvest(); renderTable(); buildLayerCtl(); }
+function renderHero(){
+  const s = currentScene();
+  $('hArea').textContent = stats.areaHa.toFixed(1)+' ha';
+  $('hNdvi').textContent = fmt(stats.mean,2);
+  $('hLst').textContent = fmt(lstStats.mean,1)+'°C';
+  $('hScene').textContent = $('siteName').value + (s ? ' · ' + s[1] + ' ' + s[2] : '');
+}
+$('siteName').oninput = renderHero;
+function renderAll(){ renderQuota(); renderScenes(); renderNdvi(); renderPixel(); renderLst(); renderTree(); renderInvest(); renderTable(); buildLayerCtl(); renderHero(); }
 applyLang();
 genRaster(); renderAll();
 if (store.get('view', 'grid') === 'sat') setView(true);
