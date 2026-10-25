@@ -9,7 +9,7 @@
 
 장면 선택 규칙(사전 고정)
   기간 2026-06-01 ~ 2026-09-30(잎이 있는 시기) · 경계 안 구름·그림자 비율(장면 전체 구름량이 아님)이
-  가장 낮은 Sentinel-2 × Landsat 9 쌍 · 두 장면 날짜 차 ≤ 5일 · 동률이면 8월 1일에 가까운 쌍
+  가장 낮은 Sentinel-2 × Landsat 9 쌍(구름은 QA 기준 · ST_B10 값 없는 화소 비율은 st_gap·coverage로 따로 기록) · 두 장면 날짜 차 ≤ 5일 · 동률이면 8월 1일에 가까운 쌍
 """
 import base64
 import io
@@ -128,14 +128,15 @@ for sid in SITES:
                     "tile": f["properties"].get("s2:mgrs_tile", "")})
     l9c = []
     for f in stac("landsat-c2-l2", bbox_ll, {"platform": {"eq": "landsat-9"}, "eo:cloud_cover": {"lt": 70}}):
-        a = crop("landsat-c2-l2", f["id"], ["qa_pixel"], b30, 30)
+        a = crop("landsat-c2-l2", f["id"], ["lwir11", "qa_pixel"], b30, 30)
         ins, _, _ = inside_mask(gutm, b30, 30, a.shape[1:])
-        qa = a[0][ins].astype(np.uint16)
-        bad = ((qa & 0b11111) != 0) | (a[-1][ins] == 0)       # fill · 확장 구름 · 권운 · 구름 · 그림자
+        qa = a[1][ins].astype(np.uint16)
+        bad = ((qa & 0b11111) != 0)                            # fill · 확장 구름 · 권운 · 구름 · 그림자(QA)
+        st_gap = (a[0][ins] == 0)                              # QA가 맑아도 ST_B10 값이 없는 화소 — 따로 기록
         l9c.append({"id": f["id"], "date": f["properties"]["datetime"][:10],
                     "time_utc": f["properties"]["datetime"][11:16],
                     "scene_cloud": round(f["properties"]["eo:cloud_cover"], 2),
-                    "local_cloud": round(100 * bad.mean(), 2)})
+                    "local_cloud": round(100 * bad.mean(), 2), "st_gap": round(100 * st_gap.mean(), 2)})
     pairs = [(max(s["local_cloud"], l["local_cloud"]), days(s["date"], "2026-08-01"), s, l)
              for s in s2c for l in l9c if days(s["date"], l["date"]) <= MAX_GAP_DAYS]
     pairs.sort(key=lambda p: (p[0], p[1]))
@@ -164,7 +165,7 @@ for sid in SITES:
     ins30, X30, Y30 = inside_mask(gutm, b30, 30, lst.shape)
     lv = lst[ins30 & lvalid]
     lst_stats = dict(mean=float(lv.mean()), sd=float(lv.std()), min=float(lv.min()), max=float(lv.max()),
-                     n=int(lv.size), n_total=int(ins30.sum()))
+                     n=int(lv.size), n_total=int(ins30.sum()), coverage=float(lv.size / ins30.sum()))
 
     # NDVI ↔ LST 산점: 30m 셀 안의 10m 화소 중심(3×3) 평균
     pairs_nl = []

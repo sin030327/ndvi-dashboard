@@ -12,3 +12,6 @@ team_private.txt
 
 # 보고서 원본(학번 포함)
 outputs/report.html
+
+# 판독 조각(Esri 영상 잘라낸 것) — 재배포하지 않음, 제출/ 에만 보관
+outputs/canopy_sheets/

@@ -35,6 +35,11 @@ for sid, meta in SITES.items():
     s = {"id": sid, **meta, "area_ha": props["area_ha"], "boundary_src": props["source"],
          "center": [round(c.y, 6), round(c.x, 6)], "boundary": rings_latlng(g),
          "sat": sat[sid], "ccs": ccs["sites"][sid]}
+    aip = DATA / "canopy_ai_reading.json"
+    if aip.exists():
+        air = json.loads(aip.read_text(encoding="utf-8"))
+        if sid in air:
+            s["ai_canopy"] = {k: air[sid][k] for k in ("n", "tree", "read_on", "method", "reader", "imagery", "seed")}
     if sid == "dongtan":
         s["roads"] = {**roads, "geo": round_geo(roads_geo), "landuse": round_geo(lu_geo)}
     else:

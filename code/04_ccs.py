@@ -265,8 +265,12 @@ def build(sid, m):
         {"지표": "NDVI 평균", "값": round(sat["ndvi"]["mean"], 3), "오차·가정 폭": f"화소 표준편차 {sat['ndvi']['sd']:.3f} (n = {sat['ndvi']['n']:,})",
          "해상도": "10m 화소", "출처·취득일": ndvi_txt, "조회일": QUERIED_ON, "비고": "Planetary Computer 공개 미러(CDSE 대체)",
          "대안": {k: f"{sat['ndvi']['mean']:.3f}(동일 장면)" for k in "ABC"}},
-        {"지표": "지표온도", "값": round(sat["lst"]["mean"], 1), "오차·가정 폭": f"화소 표준편차 {sat['lst']['sd']:.1f}℃ · 취득 시각 1회분",
-         "해상도": "30m 격자", "출처·취득일": lst_txt, "조회일": QUERIED_ON, "비고": "LST ≠ 기온 · Planetary Computer 공개 미러(USGS 대체)",
+        {"지표": "지표온도", "값": round(sat["lst"]["mean"], 1),
+         "오차·가정 폭": f"화소 표준편차 {sat['lst']['sd']:.1f}℃ · 취득 시각 1회분" + (
+             f" · ST 산출 화소 {sat['lst']['n']:,}/{sat['lst']['n_total']:,}({100 * sat['lst']['coverage']:.0f}%)만 — 경계 일부 대표" if sat["lst"]["coverage"] < 0.99 else ""),
+         "해상도": "30m 격자", "출처·취득일": lst_txt, "조회일": QUERIED_ON,
+         "비고": "LST ≠ 기온 · Planetary Computer 공개 미러(USGS 대체)" + (
+             f" · QA는 맑음이나 ST_B10 값 없는 화소 {100 - 100 * sat['lst']['coverage']:.0f}%(6~9월 모든 장면 공통, 원인 미확인)" if sat["lst"]["coverage"] < 0.99 else ""),
          "대안": {k: f"{sat['lst']['mean']:.1f}℃(동일 장면)" for k in "ABC"}},
         {"지표": "가중 유출계수", "값": round(m["runoff"]["A"], 3),
          "오차·가정 폭": f"투수포장 0.30 가정(대안 C {m['runoff_C_range'][0]:.3f}~{m['runoff_C_range'][1]:.3f})",

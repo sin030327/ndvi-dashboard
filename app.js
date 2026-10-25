@@ -164,9 +164,13 @@ function inBoundary(lat, lng){
 let itree = store.get('itree', {});
 function itreeVal(){
   const v = itree[site];
-  if (!v || !(v.n > 0) || v.tree == null || v.tree === '' || isNaN(v.tree)) return null;
-  const n = +v.n, k = Math.min(+v.tree, n), p = k/n;
-  return {n, k, p, se: Math.sqrt(p*(1-p)/n), date: v.date || ''};
+  if (v && v.n > 0 && v.tree != null && v.tree !== '' && !isNaN(v.tree)){
+    const n = +v.n, k = Math.min(+v.tree, n), p = k/n;
+    return {n, k, p, se: Math.sqrt(p*(1-p)/n), date: v.date || '', src: 'itree'};
+  }
+  const a = S().ai_canopy;     // i-Tree 입력이 없으면 AI 대체 판독(공개 표기)
+  if (a){ const p = a.tree/a.n; return {n: a.n, k: a.tree, p, se: Math.sqrt(p*(1-p)/a.n), date: a.read_on, src: 'ai'}; }
+  return null;
 }
 function loadItreeInputs(){
   const v = itree[site] || {};
@@ -208,8 +212,9 @@ function renderTasks(){
     {n:'①', t:tr('도로 위계 · 도로율','Gerarchia · indice stradale'), st:'done',
      d:tr(`대안 C에 주간선·보조간선·집산 배치. 도로율 주거 ${res['도로율(%)']}% · 상업 ${com['도로율(%)']}% · 공업 ${ind['도로율(%)']}% — 제11조 기준 ${rd.compliance}/6 충족`,
           `Arterie a 3 livelli sull’alternativa C. Indice: residenziale ${res['도로율(%)']}% · commerciale ${com['도로율(%)']}% · industriale ${ind['도로율(%)']}% — ${rd.compliance}/6 standard rispettati`), href:'#roads'},
-    {n:'②', t:tr('i-Tree 500점 판독','Lettura i-Tree 500 punti'), st: it ? 'done' : 'todo',
-     d: it ? tr(`입력됨: ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}% (N=${it.n}). .itrcnpy·PDF·CSV를 제출 폴더에 넣으세요.`, `Inserito: ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}% (N=${it.n}). Mettere .itrcnpy·PDF·CSV nella cartella di consegna.`)
+    {n:'②', t:tr('i-Tree 500점 판독','Lettura i-Tree 500 punti'), st: it ? (it.src === 'ai' ? 'wait' : 'done') : 'todo',
+     d: it && it.src === 'ai' ? tr(`AI 대체 판독(i-Tree 아님): ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}% (N=${it.n}). .itrcnpy 원본 없음.`, `Lettura sostitutiva IA (non i-Tree): ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}%. Nessun .itrcnpy.`)
+      : it ? tr(`입력됨: ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}% (N=${it.n}). .itrcnpy·PDF·CSV를 제출 폴더에 넣으세요.`, `Inserito: ${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(2)}% (N=${it.n}). Mettere .itrcnpy·PDF·CSV nella cartella di consegna.`)
            : tr('직접 판독 필요 — 경계 shapefile 업로드 → 500점 → .itrcnpy·PDF·CSV 저장 후 결과 입력', 'Lettura da fare — caricare lo shapefile → 500 punti → salvare .itrcnpy·PDF·CSV e inserire il risultato'), href:'#itree'},
     {n:'③', t:tr('지표 ⑦ 카탈로그','Catalogo indicatore ⑦'), st: it ? 'done' : 'wait',
      d:tr(`NDVI ${fmt(s.sat.ndvi.mean,3)} · LST ${fmt(s.sat.lst.mean,1)}℃ 실측 저장. 캐노피 ${it ? '입력됨' : '판독 대기'}.`, `NDVI ${fmt(s.sat.ndvi.mean,3)} · LST ${fmt(s.sat.lst.mean,1)}℃ misurati. Chioma ${it ? 'inserita' : 'in attesa'}.`), href:'#dash'},
@@ -410,6 +415,10 @@ function renderLst(){
   $('pDN').textContent = dn.toLocaleString(); $('pSc').textContent = sc.toFixed(2);
   $('pK').textContent = k.toFixed(2); $('pC').textContent = c.toFixed(2);
   $('kLst').textContent = fmt(sat.lst.mean,1)+'°C'; $('kR').textContent = fmt(sat.ndvi_lst_r,2);
+  $('lstCov').innerHTML = sat.lst.coverage < 0.99
+    ? tr(`⚠ ST 산출 화소 ${sat.lst.n.toLocaleString()}/${sat.lst.n_total.toLocaleString()}(${(100*sat.lst.coverage).toFixed(0)}%)만 — 이 값은 경계 일부만 대표합니다. QA는 맑음이나 ST_B10 값이 없는 화소가 6~9월 모든 장면에서 나타남(원인 미확인).`,
+         `⚠ Solo ${sat.lst.n.toLocaleString()}/${sat.lst.n_total.toLocaleString()} pixel ST (${(100*sat.lst.coverage).toFixed(0)}%): il valore rappresenta solo parte del confine.`)
+    : tr(`ST 산출 화소 ${sat.lst.n}/${sat.lst.n_total}(100%)`, `Pixel ST ${sat.lst.n}/${sat.lst.n_total} (100%)`);
   const P = sat.ndvi_lst_pairs, cv = $('scatter'), x = cv.getContext('2d'), W = cv.width, H = cv.height, Lm = 34, B = 22;
   x.clearRect(0,0,W,H);
   const xs0 = Math.min(...P.map(p=>p[0]), 0), xs1 = Math.max(...P.map(p=>p[0]), 0.8);
@@ -435,6 +444,10 @@ function renderItree(){
     $('kCanA').textContent = (A*it.p).toFixed(2)+' ±'+(A*it.se).toFixed(2);
   } else { $('kCan').textContent = $('kSE').textContent = $('kCanA').textContent = '–'; }
   $('kDiff').textContent = (100*native.filter(v => v >= 0.5).length/native.length).toFixed(1)+'%';
+  $('simOut').innerHTML = it && it.src === 'ai'
+    ? tr(`위 값은 <b>AI 대체 판독(i-Tree 아님)</b> — ${S().ai_canopy.method} · 판독자 ${S().ai_canopy.reader} · ${S().ai_canopy.imagery}. 위 칸에 i-Tree 판독값을 넣으면 그 값으로 바뀝니다.`,
+         `Valori da <b>lettura sostitutiva IA (non i-Tree)</b>. Inserendo i valori i-Tree qui sopra, verranno usati quelli.`)
+    : $('simOut').innerHTML;
 }
 $('simPts').onclick = () => {
   const {g, ndvi} = G(), n = 500, pts = [];
@@ -484,9 +497,12 @@ function ccsRows(){
         const sig = Math.abs(pB-it.p) >= 2*Math.max(it.se, seB);
         row.값 = (100*it.p).toFixed(1)+'%';
         row['오차·가정 폭'] = `± ${(100*it.se).toFixed(2)}%p (SE, N = ${it.n})`;
-        row['출처·취득일'] = `i-Tree Canopy · ${tr('판독','lettura')} ${it.date || tr('(판독일 기입)','(data)')}`;
+        row['출처·취득일'] = it.src === 'ai'
+          ? tr(`AI 대체 판독(i-Tree 아님) · ${S().ai_canopy.imagery} · 판독 ${it.date}`, `Lettura sostitutiva IA (non i-Tree) · Esri World Imagery · ${it.date}`)
+          : `i-Tree Canopy · ${tr('판독','lettura')} ${it.date || tr('(판독일 기입)','(data)')}`;
+        if (it.src === 'ai') row.해상도 = tr('무작위 500점(AI 판독)', '500 punti casuali (lettura IA)');
         row.조회일 = it.date || '';
-        row.비고 = tr(`${it.k}/${it.n}점 수목`, `${it.k}/${it.n} punti albero`);
+        row.비고 = tr(`${it.k}/${it.n}점 수목`, `${it.k}/${it.n} punti albero`) + (it.src === 'ai' ? tr(' · i-Tree 원본(.itrcnpy) 없음 — 대체 판독', ' · nessun file .itrcnpy — lettura sostitutiva') : '');
         row.대안 = {A: `${(100*it.p).toFixed(1)} ± ${(100*it.se).toFixed(1)}`,
                     B: `${(100*pB).toFixed(1)} ± ${(100*seB).toFixed(1)} (${sig ? tr('유의','signif.') : tr('차이 없음','nessuna diff.')})`,
                     C: `${(100*pB).toFixed(1)} ± ${(100*seB).toFixed(1)} (${sig ? tr('유의','signif.') : tr('차이 없음','nessuna diff.')})`};

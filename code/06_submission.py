@@ -6,6 +6,7 @@
       제출/조감이미지_프롬프트_캡션.txt · 제출/i-Tree_작업안내.txt · 제출/제출_체크리스트.md
 """
 import base64
+import io
 import csv
 import json
 import math
@@ -41,13 +42,29 @@ CSVDIR = SUBMIT / "csv"
 CSVDIR.mkdir(exist_ok=True)
 
 
+AIP = DATA / "canopy_ai_reading.json"   # i-Tree 대신 AI가 판독한 무작위 500점(공개 표기) — 07_ai_canopy_points.py
+AIR = json.loads(AIP.read_text(encoding="utf-8")) if AIP.exists() else {}
+
+
 def itree(sid):
+    """캐노피 판독값 — i-Tree 결과가 있으면 우선, 없으면 AI 대체 판독(출처를 따로 표기)"""
     v = ITREE.get(sid) or {}
-    if v.get("tree") is None or not v.get("n"):
+    if v.get("tree") is not None and v.get("n"):
+        n, k = int(v["n"]), int(v["tree"])
+        src, src_txt, res_txt, note = "itree", f"i-Tree Canopy · 판독 {v.get('date') or ''}", "500점 판독", ""
+        date = v.get("date") or ""
+    elif sid in AIR:
+        a = AIR[sid]
+        n, k, date = int(a["n"]), int(a["tree"]), a["read_on"]
+        src = "ai"
+        src_txt = f"AI 대체 판독(i-Tree 아님) · {a['imagery']} · 판독 {date}"
+        res_txt = "무작위 500점(AI 판독)"
+        note = "i-Tree 원본(.itrcnpy) 없음 — 같은 방식의 대체 판독, 판독자 AI(Claude)"
+    else:
         return None
-    n, k = int(v["n"]), int(v["tree"])
     p = k / n
-    return {"n": n, "k": k, "p": p, "se": math.sqrt(p * (1 - p) / n), "date": v.get("date") or ""}
+    return {"n": n, "k": k, "p": p, "se": math.sqrt(p * (1 - p) / n), "date": date,
+            "src": src, "src_txt": src_txt, "res_txt": res_txt, "note": note}
 
 
 def sc(name, v):
@@ -130,9 +147,12 @@ def ccs_rows(sid):
             seB = math.sqrt(pB * (1 - pB) / it["n"])
             sig = "유의" if abs(pB - it["p"]) >= 2 * max(it["se"], seB) else "차이 없음"
             r.update({"값": f"{100 * it['p']:.1f}%", "오차·가정 폭": f"± {100 * it['se']:.2f}%p (SE, N = {it['n']})",
-                      "출처·취득일": f"i-Tree Canopy · 판독 {it['date']}", "조회일": it["date"], "비고": f"{it['k']}/{it['n']}점 수목"})
+                      "해상도": it["res_txt"], "출처·취득일": it["src_txt"], "조회일": it["date"],
+                      "비고": f"{it['k']}/{it['n']}점 수목" + (f" · {it['note']}" if it["note"] else "")})
             r["대안"] = {"A": f"{100 * it['p']:.1f} ± {100 * it['se']:.1f}",
                         "B": f"{100 * pB:.1f} ± {100 * seB:.1f} ({sig})", "C": f"{100 * pB:.1f} ± {100 * seB:.1f} ({sig})"}
+        elif i == 0 and sid == "cheonan":
+            r["비고"] = "빈칸 사유: 판독 미실시 — 과제 대상지는 동탄 후보지 A, 천안캠퍼스는 추가 비교"
         out.append(r)
     return out
 
@@ -172,8 +192,16 @@ for sid in SITES:
     figs[sid] = fp
 
 
-def img64(p):
-    return "data:image/png;base64," + base64.b64encode(Path(p).read_bytes()).decode()
+def img64(p, jpeg=False, maxw=1600):
+    if not jpeg:
+        return "data:image/png;base64," + base64.b64encode(Path(p).read_bytes()).decode()
+    from PIL import Image
+    im = Image.open(p).convert("RGB")
+    if im.width > maxw:
+        im = im.resize((maxw, round(im.height * maxw / im.width)))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=82)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
 # ── CSV · xlsx ───────────────────────────────────────────────────────
@@ -223,14 +251,14 @@ cat = [["대상", "지표", "값", "오차", "해상도", "출처", "장면 ID",
 for sid in SITES:
     s, it = SAT[sid], itree(sid)
     cat.append([SITES[sid]["name"], "캐노피 피복률(%)", round(100 * it["p"], 2) if it else None,
-                f"± {100 * it['se']:.2f}%p SE" if it else "", "500점 판독", "i-Tree Canopy", "", it["date"] if it else "",
-                "", it["date"] if it else "", "" if it else "빈칸 — i-Tree 판독 대기(판독 후 data/itree_results.json 입력)"])
+                f"± {100 * it['se']:.2f}%p SE" if it else "", it["res_txt"] if it else "500점 판독", it["src_txt"] if it else "i-Tree Canopy", "", it["date"] if it else "",
+                "", it["date"] if it else "", it["note"] if it else ("빈칸 — 판독 미실시(과제 대상지는 동탄 후보지 A, 천안캠퍼스는 추가 비교)" if sid == "cheonan" else "빈칸 — i-Tree 판독 대기")])
     cat.append([SITES[sid]["name"], "NDVI 평균", round(s["ndvi"]["mean"], 4), f"화소 SD {s['ndvi']['sd']:.4f} · n {s['ndvi']['n']}", "10m",
                 "Sentinel-2 L2A (Planetary Computer 공개 미러)", s["s2"]["id"], s["s2"]["date"], s["s2"]["local_cloud"], QUERIED_ON,
                 f"임계값 0.3 이상 화소 {100 * s['ndvi']['green_ratio']:.1f}%"])
     cat.append([SITES[sid]["name"], "지표온도(℃)", round(s["lst"]["mean"], 2), f"화소 SD {s['lst']['sd']:.2f} · n {s['lst']['n']}", "30m",
                 "Landsat 9 C2 L2 ST_B10 (Planetary Computer 공개 미러)", s["l9"]["id"], f"{s['l9']['date']} {s['l9']['time_utc']} UTC",
-                s["l9"]["local_cloud"], QUERIED_ON, "LST ≠ 기온"])
+                s["l9"]["local_cloud"], QUERIED_ON, "LST ≠ 기온" + (f" · ST 산출 화소 {100 * s['lst']['coverage']:.0f}%만(나머지 ST_B10 값 없음, 원인 미확인) — 경계 일부 대표" if s["lst"]["coverage"] < 0.99 else "")])
 sheet("③지표7_카탈로그", cat)
 write_csv("3_지표7_카탈로그.csv", cat)
 
@@ -343,10 +371,29 @@ def table(rows, cls=""):
 
 aerial = next((p for p in [SUBMIT / "조감이미지.png", SUBMIT / "조감이미지.jpg", SUBMIT / "조감이미지.jpeg"] if p.exists()), None)
 if aerial:
-    mime = "jpeg" if aerial.suffix.lower() in (".jpg", ".jpeg") else "png"
-    aerial_html = f'<img class="fig" src="data:image/{mime};base64,{base64.b64encode(aerial.read_bytes()).decode()}"><p class="cap">{caption}</p>'
+    aerial_html = f'<img class="fig" src="{img64(aerial, jpeg=True)}"><p class="cap">{caption}</p>'
 else:
     aerial_html = '<div class="todo">이미지 미첨부 — 아래 프롬프트로 밝은 장면 1장을 생성해 제출/조감이미지.png로 저장한 뒤 06_submission.py를 다시 실행하면 이 자리에 들어갑니다.</div>'
+
+# AI 대체 판독 근거 — 판독 조각 20장 · 점별 분류 CSV
+ai_html = ""
+if "dongtan" in AIR:
+    import shutil
+    ev = SUBMIT / "캐노피_대체판독_동탄"
+    ev.mkdir(exist_ok=True)
+    for f in (OUT / "canopy_sheets").glob("sheet_*.png"):
+        shutil.copy(f, ev / f.name)
+    a = AIR["dongtan"]
+    with open(ev / "판독점_500_분류.csv", "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["id", "lat", "lon", "class"])
+        for q in a["points"]:
+            w.writerow([q["id"], q["lat"], q["lon"], q["class"]])
+    ai_html = (f"<div class='box'><b>대체 판독 방법(공개 표기)</b> — {a['method']}. 판독자 {a['reader']}. 영상 {a['imagery']}. "
+               f"무작위 점 시드 {a['seed']}(재현 가능). 판정 규칙: {a['rule']}. 점별 분류와 판독 조각 20장은 제출/캐노피_대체판독_동탄/에 있다. "
+               "잎 없는 시기 영상이라 낙엽수 수관은 갈색 질감으로 판독했고, 그림자 속 점은 주변 질감으로 판단해 판독자 오차가 있을 수 있다.</div>"
+               f"<img class='fig' src='{img64(OUT / 'canopy_sheets' / 'sheet_01.png', jpeg=True, maxw=930)}' style='width:62%'>"
+               "<p class='cap'>판독 조각 예시(1~25번) — 중앙 십자 = 판독 위치, 한 조각 약 60m.</p>")
 
 sec_ccs = ""
 for sid in SITES:
@@ -381,9 +428,9 @@ for sid in SITES:
 it_txt = []
 for sid in SITES:
     it = itree(sid)
-    it_txt.append(f"<li><b>{SITES[sid]['name']}</b> — " + (f"수목 {it['k']}/{it['n']}점 = <b>{100 * it['p']:.1f} ± {100 * it['se']:.2f}%</b> (판독 {it['date']}), "
+    it_txt.append(f"<li><b>{SITES[sid]['name']}</b> — " + (f"{'<b>AI 대체 판독(i-Tree 아님)</b> — ' if it['src'] == 'ai' else ''}수목 {it['k']}/{it['n']}점 = <b>{100 * it['p']:.1f} ± {100 * it['se']:.2f}%</b> (판독 {it['date']}), "
                   f"캐노피 면적 {SAT and CCS['sites'][sid]['model']['area_ha'] * it['p']:.2f} ± {CCS['sites'][sid]['model']['area_ha'] * it['se']:.2f}ha" if it
-                  else "<span class='blank'>판독 대기</span> — i-Tree 판독 후 data/itree_results.json에 입력하고 이 보고서를 다시 만듭니다.") + "</li>")
+                  else "<span class='blank'>판독 미실시</span> — 과제 대상지는 동탄 후보지 A이고 천안캠퍼스는 추가 비교라 캐노피 칸을 사유와 함께 비워 둠.") + "</li>")
 
 s2rows = [["대상", "Sentinel-2 L2A 장면", "취득일", "경계 안 구름", "Landsat 9 C2 L2 장면", "취득일·시각", "경계 안 구름"]] + [
     [SITES[s]["short"], SAT[s]["s2"]["id"], SAT[s]["s2"]["date"], f"{SAT[s]['s2']['local_cloud']}%", SAT[s]["l9"]["id"],
@@ -411,7 +458,7 @@ table.small{{font-size:7.8pt}} .s{{font-size:7.6pt;color:#555}} .blank{{backgrou
 <ul>
 <li><b>① 도로 위계</b> — 6주차 1위 대안 C에 주간선 35m·보조간선 25m·집산 20m를 1,000·500·250m 간격으로 배치했다. 도로율은 주거 {res['주거']['도로율(%)']}%(간선 {res['주거']['간선도로율(%)']}%) · 상업 {res['상업·업무']['도로율(%)']}%({res['상업·업무']['간선도로율(%)']}%) · 공업 {res['공업']['도로율(%)']}%({res['공업']['간선도로율(%)']}%)로 제11조 기준 {RD['compliance']}/6을 충족한다.</li>
 <li><b>③ 지표 ⑦</b> — 동탄 NDVI {SAT['dongtan']['ndvi']['mean']:.3f} · LST {SAT['dongtan']['lst']['mean']:.1f}℃({SAT['dongtan']['s2']['date']}), 천안캠퍼스 NDVI {SAT['cheonan']['ndvi']['mean']:.3f} · LST {SAT['cheonan']['lst']['mean']:.1f}℃({SAT['cheonan']['s2']['date']}/{SAT['cheonan']['l9']['date']}). 모두 경계 안 구름 0% 장면의 실측값이다.</li>
-<li><b>② i-Tree</b> — {'판독값 입력 완료' if all(itree(s) for s in SITES) else '판독 대기(캐노피 칸은 사유와 함께 빈칸)'}.</li>
+<li><b>② 캐노피 판독</b> — {('동탄 후보지 A: i-Tree와 같은 무작위 500점 방식의 <b>AI 대체 판독(i-Tree 아님)</b>, ' + f"{100 * itree('dongtan')['p']:.1f} ± {100 * itree('dongtan')['se']:.2f}%. .itrcnpy 원본은 없음") if itree('dongtan') and itree('dongtan')['src'] == 'ai' else ('i-Tree 판독값 입력' if itree('dongtan') else '판독 대기')}. 천안캠퍼스는 판독 미실시(사유 기록).</li>
 <li><b>④ 대안 비교</b> — 동탄 {' > '.join(ALTN[k] for k in mx_out['dongtan'][2])}, 천안 {' > '.join(ALTN[k] for k in mx_out['cheonan'][2])}{' (잠정)' if any(mx_out[s][4] for s in SITES) else ''}.</li>
 <li><b>준비 질문</b> — 500점에서 캐노피 20% 대 23%는 SE × 2 = 3.76%p보다 차이(3.0%p)가 작아 '차이 없음'. 값 옆에 ± SE를 남기고 판정어를 함께 적는다.</li>
 </ul>
@@ -429,6 +476,7 @@ table.small{{font-size:7.8pt}} .s{{font-size:7.6pt;color:#555}} .blank{{backgrou
 
 <h2>3. 과제 ② i-Tree Canopy 500점 판독</h2>
 <ul>{''.join(it_txt)}</ul>
+{ai_html}
 <p class="s">경계 shapefile(WGS84)은 제출/i-Tree_경계/에 있다. 단순모드(Tree/Non-Tree) 500점, SE = √(p(1−p)/N), 면적 = 경계 면적 × p ± 경계 면적 × SE. 원본 .itrcnpy · Report PDF · CSV를 함께 제출한다.</p>
 
 <h2>4. 과제 ③ 지표 ⑦ 카탈로그 — 캐노피 · NDVI · 지표온도</h2>
@@ -452,6 +500,7 @@ table.small{{font-size:7.8pt}} .s{{font-size:7.6pt;color:#555}} .blank{{backgrou
 <li>NDVI·LST는 각 대상지 장면 1회분이다. 같은 날짜대 비교 규약에 따라 대안 간 차이는 위성값으로 판정하지 않았다.</li>
 <li>HM은 InVEST User Guide 식의 재구현이며 생물물리 값·ET0 균일은 가정이다. 그늘 가중치 ±0.1 변동 폭을 값 옆에 적었다.</li>
 <li>Landsat 열적외 원 해상도는 100m(30m 재배열)이라 가로수 1열 규모의 변화는 잡히지 않는다.</li>
+<li><b>동탄 지표온도는 경계의 {100 * SAT['dongtan']['lst']['coverage']:.0f}%({SAT['dongtan']['lst']['n']:,}/{SAT['dongtan']['lst']['n_total']:,}셀)만 대표한다.</b> QA_PIXEL은 맑음인데 ST_B10 값이 없는 화소가 6~9월 Landsat 9 장면 모두에서 76% 이상 나타났다(경로 115·116 공통, 원인 미확인). USGS EarthExplorer 원본으로 교차 확인이 필요하다.</li>
 <li>공업용지 유출계수는 표 9-11에 없어 상업용지 값을 준용했다. 단가는 출처 확인 전 가정값이다.</li>
 </ul>
 <h2>참고문헌</h2>
@@ -475,9 +524,9 @@ has = lambda ext: any(f.lower().endswith(ext) for f in files)
 | 과제 | 상태 | 파일 |
 |---|---|---|
 | ① 도로 위계 — 대안 1안 간선 3단 · 도로율 | {done(True)} 기준 {RD['compliance']}/6 충족 | 보고서 2장 · 7주차_결과표.xlsx「①…」 · csv/1_*.csv |
-| ② i-Tree 500점 판독 | {done(all(its.values()))} {'입력됨' if all(its.values()) else '직접 판독 필요'} | {'.itrcnpy ' + done(has('.itrcnpy'))} · i-Tree PDF · i-Tree CSV → 이 폴더에 추가 |
-| ③ 지표 ⑦ 카탈로그 | {done(all(its.values()))} NDVI·LST 실측 완료, 캐노피 {'입력됨' if all(its.values()) else '대기'} | xlsx「③지표7_카탈로그」 · csv/3_지표7_카탈로그.csv |
-| ④ CCS 1차 결과표 · 대안 A·B·C | {done(all(its.values()))} {'확정' if all(its.values()) else '잠정(캐노피 빈칸 — 사유 기록됨)'} | xlsx「④…」 · csv/4_*.csv · 보고서 5장 |
+| ② i-Tree 500점 판독 | {done(its['dongtan'] is not None and its['dongtan']['src'] == 'itree')} {'동탄: AI 대체 판독(i-Tree 아님, .itrcnpy 없음)' if its['dongtan'] and its['dongtan']['src'] == 'ai' else ('입력됨' if its['dongtan'] else '직접 판독 필요')} · 천안: 미실시 | {'.itrcnpy ' + done(has('.itrcnpy'))} · i-Tree PDF · i-Tree CSV → 이 폴더에 추가 |
+| ③ 지표 ⑦ 카탈로그 | {done(its['dongtan'] is not None)} NDVI·LST 실측 완료, 동탄 캐노피 {'AI 대체 판독값' if its['dongtan'] and its['dongtan']['src'] == 'ai' else ('입력됨' if its['dongtan'] else '대기')} | xlsx「③지표7_카탈로그」 · csv/3_지표7_카탈로그.csv |
+| ④ CCS 1차 결과표 · 대안 A·B·C | {done(its['dongtan'] is not None)} 동탄 {'확정' if its['dongtan'] else '잠정'} · 천안 잠정(캐노피 미실시 — 사유 기록) | xlsx「④…」 · csv/4_*.csv · 보고서 5장 |
 | ⑤ 조감 이미지 · 'AI 생성' 캡션 | {done(aerial is not None)} {'첨부됨' if aerial else '이미지 생성 필요'} | 조감이미지_프롬프트_캡션.txt → 제출/조감이미지.png |
 
 ## 직접 할 일
